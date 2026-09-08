@@ -1,0 +1,12 @@
+.DS_Store
+.build/
+.swiftpm/
+dist/
+.venv/
+__pycache__/
+*.pyc
+*.sqlite*
+*.npy
+.env
+benchmark-results.json
+semantic-evaluation.json
