@@ -17,6 +17,7 @@ final class LibraryTests: XCTestCase {
         XCTAssertEqual(Metadata.bpm("KSHMR_Drum_Loop_128", kind: "Loop"), 128)
         XCTAssertEqual(Metadata.bpm("Synth_128_F#min"), 128)
         XCTAssertNil(Metadata.bpm("Kick_128"))
+        XCTAssertNil(Metadata.bpm("Bass_128_C", kind: "One-shot"))
         XCTAssertNil(Metadata.bpm("Drum_Loop_100_128", kind: "Loop"))
     }
 

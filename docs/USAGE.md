@@ -38,7 +38,7 @@ Sweeps, risers, downlifters, impacts, claps and snares are distinct categories. 
 
 ## BPM, musical key, and root notes
 
-- Explicit BPM labels are read from filenames and, as fallback, folders. A single plausible bare number is also accepted in a loop filename or alongside a pitch label. These remain filename hints, not audio measurements.
+- Explicit BPM labels are read from filenames and, as fallback, folders. A single plausible bare number is also accepted in a loop filename or alongside a pitch label, except for explicitly labeled one-shots where numbers may be hit IDs. These remain filename hints, not audio measurements.
 - Major/minor labels such as `F#min` are stored as keys.
 - A final pitch label such as `Bass_01_C` is a **root note**. It does not imply C major.
 - A one-shot usually has no meaningful tempo, but a pitched bass/synth/kick can have a root note; a chord one-shot can have a key.

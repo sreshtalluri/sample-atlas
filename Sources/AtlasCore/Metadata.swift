@@ -60,7 +60,7 @@ public enum Metadata {
         // Bare tempo numbers are accepted only with loop context or a pitch label,
         // and only when there is one plausible candidate. Pack versions and hit IDs
         // remain ambiguous; audio-derived estimation is a separate future step.
-        if kind == "Loop" || key(name) != nil || rootNote(name) != nil {
+        if kind != "One-shot" && (kind == "Loop" || key(name) != nil || rootNote(name) != nil) {
             let candidates = tokens(name).compactMap { term -> Double? in
                 guard term.count >= 2, !term.hasPrefix("0"), let value = Double(term), (50...240).contains(value) else { return nil }
                 return value
