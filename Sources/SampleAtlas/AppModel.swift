@@ -16,7 +16,9 @@ final class AppModel: ObservableObject {
     @Published var maxBPM = "" { didSet { scheduleSearch() } }
     @Published var favoritesOnly = false { didSet { scheduleSearch() } }
     @Published var unknownBPM = false { didSet { scheduleSearch() } }
-    @Published var semanticEnabled = false { didSet { scheduleSearch() } }
+    @Published var semanticEnabled = UserDefaults.standard.bool(forKey: "semanticEnabled") {
+        didSet { UserDefaults.standard.set(semanticEnabled, forKey: "semanticEnabled"); scheduleSearch() }
+    }
     @Published var selectedID: Int64? { didSet { if selectedID != oldValue { loadSelection() } } }
     @Published var selected: Sample?
     @Published var peaks: [Float] = []
@@ -70,7 +72,12 @@ final class AppModel: ObservableObject {
                 self.playhead = player.currentTime; self.isPlaying = player.isPlaying
             }
         }
-        Task { await reload(); restoreAccess(); scheduleSearch(); scan() }
+        Task { await reload(); restoreAccess(); scheduleSearch(); scan(); autoLoadSemantic() }
+    }
+    private func autoLoadSemantic() {
+        let index = support.appendingPathComponent("semantic/embeddings.sqlite").path
+        guard !pythonPath.isEmpty, !workerPath.isEmpty, FileManager.default.fileExists(atPath: index) else { return }
+        startSemantic(index: false)
     }
     private func restoreAccess() {
         for source in sources {
