@@ -82,6 +82,26 @@ final class LibraryTests: XCTestCase {
         XCTAssertNil(tree[0].children?.first { $0.name == "Drumsticks" }?.children)
     }
 
+    func testDirectoryWalkSkipsHiddenSymlinkedAndPackagedAudio() throws {
+        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        let nested = temporary.appendingPathComponent("Pack/Drums/Kicks")
+        let bundle = temporary.appendingPathComponent("Pack/Project.app/Contents")
+        try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: bundle, withIntermediateDirectories: true)
+        for name in ["Pack/top.WAV", "Pack/Drums/Kicks/kick.wav", "Pack/Drums/.hidden.wav", "Pack/notes.txt", "Pack/Project.app/Contents/bounce.wav"] {
+            try Data([0]).write(to: temporary.appendingPathComponent(name))
+        }
+        try FileManager.default.createSymbolicLink(at: temporary.appendingPathComponent("Pack/alias.wav"), withDestinationURL: temporary.appendingPathComponent("Pack/top.WAV"))
+        var errors: [String] = []
+        let files = try LibraryScanner.listAudioFiles(under: temporary.appendingPathComponent("Pack").path, errors: &errors)
+        XCTAssertEqual(Set(files.map { ($0.path as NSString).lastPathComponent }), ["top.WAV", "kick.wav"])
+        XCTAssertEqual(files.first { $0.path.hasSuffix("kick.wav") }?.size, 1)
+        XCTAssertTrue(errors.isEmpty)
+        let missing = try LibraryScanner.listAudioFiles(under: temporary.appendingPathComponent("Nope").path, errors: &errors)
+        XCTAssertTrue(missing.isEmpty); XCTAssertEqual(errors.count, 1)
+    }
+
     func testRealScanKeepsOriginalAudioAndAnnotationsAcrossUpdates() async throws {
         let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: temporary) }
