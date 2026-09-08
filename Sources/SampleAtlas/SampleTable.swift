@@ -16,6 +16,9 @@ struct SampleTable: NSViewRepresentable {
         table.usesAlternatingRowBackgroundColors = true
         table.allowsMultipleSelection = false
         table.columnAutoresizingStyle = .noColumnAutoresizing
+        // The default inset style pads the columns ~11pt per side, so the table
+        // outgrows the clip view and the star column is cut off at the right edge.
+        table.style = .plain
         table.backgroundColor = .clear
         for (id, title, width) in [("sound", "Sound", 310.0), ("category", "Type", 85),
                                    ("bpm", "BPM", 55), ("key", "Key", 100), ("length", "Length", 65), ("star", "★", 32)] {
