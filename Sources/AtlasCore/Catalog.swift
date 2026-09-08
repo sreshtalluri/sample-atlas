@@ -43,12 +43,25 @@ public actor Catalog {
           INSERT INTO sample_fts(sample_fts,rowid,name,folder,tags,category) VALUES('delete',old.id,old.name,old.folder,old.tags,old.category);
           INSERT INTO sample_fts(rowid,name,folder,tags,category) VALUES(new.id,new.name,new.folder,new.tags,new.category);
         END;
-        PRAGMA user_version=1;
         """
         guard sqlite3_exec(db, schema, nil, nil, nil) == SQLITE_OK else {
             let error = String(cString: sqlite3_errmsg(db)); sqlite3_close(db); db = nil
             throw CatalogError(message: error)
         }
+        // Additive migration preserves the user's existing catalog and annotations.
+        var pragma: OpaquePointer?
+        sqlite3_prepare_v2(db, "PRAGMA table_info(samples)", -1, &pragma, nil)
+        var columns = Set<String>()
+        while sqlite3_step(pragma) == SQLITE_ROW {
+            if let name = sqlite3_column_text(pragma, 1) { columns.insert(String(cString: name)) }
+        }
+        sqlite3_finalize(pragma)
+        for (name, type) in [("kind", "TEXT NOT NULL DEFAULT 'Unknown'"), ("root_note", "TEXT"), ("metadata_version", "INTEGER NOT NULL DEFAULT 0")] where !columns.contains(name) {
+            guard sqlite3_exec(db, "ALTER TABLE samples ADD COLUMN \(name) \(type)", nil, nil, nil) == SQLITE_OK else {
+                throw CatalogError(message: String(cString: sqlite3_errmsg(db)))
+            }
+        }
+        sqlite3_exec(db, "CREATE INDEX IF NOT EXISTS sample_kind ON samples(kind); CREATE INDEX IF NOT EXISTS sample_root_note ON samples(root_note); PRAGMA user_version=2;", nil, nil, nil)
     }
     deinit { sqlite3_close(db) }
 
@@ -100,7 +113,7 @@ public actor Catalog {
     public func setFavorite(_ id: Int64, _ value: Bool) throws { try run("UPDATE samples SET favorite=? WHERE id=?", [value ? 1 : 0, id]) }
     public func setTags(_ id: Int64, _ tags: String) throws { try run("UPDATE samples SET tags=? WHERE id=?", [tags, id]) }
     public func fingerprints(sourceID: Int64) throws -> [String: String] {
-        let s = try statement("SELECT path,fingerprint FROM samples WHERE source_id=?", [sourceID]); defer { sqlite3_finalize(s) }
+        let s = try statement("SELECT path,fingerprint FROM samples WHERE source_id=? AND metadata_version=?", [sourceID, Metadata.version]); defer { sqlite3_finalize(s) }
         var result: [String: String] = [:]
         while sqlite3_step(s) == SQLITE_ROW { result[string(s, 0)] = string(s, 1) }
         return result
@@ -110,12 +123,13 @@ public actor Catalog {
         do {
             for v in samples {
                 try run("""
-                INSERT INTO samples(source_id,path,name,folder,duration,sample_rate,channels,bpm,musical_key,category,tags,fingerprint,metadata_origin,seen)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(path) DO UPDATE SET
+                INSERT INTO samples(source_id,path,name,folder,duration,sample_rate,channels,bpm,musical_key,category,tags,fingerprint,metadata_origin,seen,kind,root_note,metadata_version)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(path) DO UPDATE SET
                 name=excluded.name,folder=excluded.folder,duration=excluded.duration,sample_rate=excluded.sample_rate,
                 channels=excluded.channels,bpm=excluded.bpm,musical_key=excluded.musical_key,category=excluded.category,
-                fingerprint=excluded.fingerprint,metadata_origin=excluded.metadata_origin,seen=excluded.seen,available=1
-                """, [v.sourceID,v.path,v.name,v.folder,v.duration,v.sampleRate,v.channels,v.bpm,v.key,v.category,v.tags,v.fingerprint,v.metadataOrigin,seen])
+                fingerprint=excluded.fingerprint,metadata_origin=excluded.metadata_origin,seen=excluded.seen,available=1,
+                kind=excluded.kind,root_note=excluded.root_note,metadata_version=excluded.metadata_version
+                """, [v.sourceID,v.path,v.name,v.folder,v.duration,v.sampleRate,v.channels,v.bpm,v.key,v.category,v.tags,v.fingerprint,v.metadataOrigin,seen,v.kind,v.rootNote,Metadata.version])
             }
             try run("COMMIT")
         } catch { try? run("ROLLBACK"); throw error }
@@ -139,7 +153,9 @@ public actor Catalog {
         if !request.includeUnavailable { clauses.append("s.available=1") }
         if let id = request.sourceID { clauses.append("s.source_id=?"); values.append(id) }
         if !request.category.isEmpty { clauses.append("s.category=?"); values.append(request.category) }
+        if !request.kind.isEmpty { clauses.append("s.kind=?"); values.append(request.kind) }
         if request.key == "Unknown" { clauses.append("s.musical_key IS NULL") }
+        else if request.key.hasPrefix("root:") { clauses.append("s.root_note=?"); values.append(String(request.key.dropFirst(5))) }
         else if !request.key.isEmpty { clauses.append("s.musical_key=?"); values.append(Metadata.normalizeKey(request.key) ?? request.key) }
         if request.unknownBPM { clauses.append("s.bpm IS NULL") }
         else {
@@ -154,13 +170,32 @@ public actor Catalog {
         let s = try statement("SELECT s.id FROM samples s WHERE \(whereSQL)", values); defer { sqlite3_finalize(s) }
         var ids: [Int64] = []; while sqlite3_step(s) == SQLITE_ROW { ids.append(sqlite3_column_int64(s, 0)) }; return ids
     }
+    /// Snapshot just the ranked IDs. Hydrate visible rows in pages, without a result cap
+    /// or repeatedly sorting the same FTS matches while the user scrolls.
+    public func matchingIDs(_ request: SearchRequest) throws -> [Int64] {
+        let (whereSQL, filterValues) = filters(request)
+        var values = filterValues
+        var sql = "SELECT s.id FROM samples s"
+        let query = Metadata.ftsQuery(request.text)
+        if query != nil { sql += " JOIN sample_fts ON sample_fts.rowid=s.id" }
+        sql += " WHERE " + whereSQL
+        if let query { sql += " AND sample_fts MATCH ?"; values.append(query) }
+        sql += query == nil ? " ORDER BY s.favorite DESC,s.name COLLATE NOCASE,s.id" : " ORDER BY bm25(sample_fts,8.0,1.0,4.0,3.0),s.id"
+        let s = try statement(sql, values); defer { sqlite3_finalize(s) }
+        var ids: [Int64] = []
+        var step = sqlite3_step(s)
+        while step == SQLITE_ROW { ids.append(sqlite3_column_int64(s, 0)); step = sqlite3_step(s) }
+        guard step == SQLITE_DONE else { throw failure() }
+        return ids
+    }
     public func search(_ request: SearchRequest, rankedIDs: [Int64]? = nil) throws -> [Sample] {
         let (whereSQL, filterValues) = filters(request)
         var values = filterValues
         var join = ""; var predicate = whereSQL; var order = "s.favorite DESC,s.name COLLATE NOCASE,s.id"
         if let rankedIDs {
             guard !rankedIDs.isEmpty else { return [] }
-            let ids = Array(rankedIDs.prefix(500))
+            let ids = Array(rankedIDs.dropFirst(max(0, request.offset)).prefix(max(1, min(request.limit, 500))))
+            guard !ids.isEmpty else { return [] }
             predicate += " AND s.id IN (" + ids.map { _ in "?" }.joined(separator: ",") + ")"
             values.append(contentsOf: ids.map { $0 as Any? })
         } else if let query = Metadata.ftsQuery(request.text) {
@@ -169,7 +204,8 @@ public actor Catalog {
             order = "bm25(sample_fts,8.0,1.0,4.0,3.0),s.id"
         }
         values.append(max(1, min(request.limit, 500)))
-        let s = try statement("SELECT s.id,s.source_id,s.path,s.name,s.folder,s.duration,s.sample_rate,s.channels,s.bpm,s.musical_key,s.category,s.tags,s.favorite,s.available,s.fingerprint,s.metadata_origin FROM samples s\(join) WHERE \(predicate) ORDER BY \(order) LIMIT ?", values)
+        values.append(rankedIDs == nil ? max(0, request.offset) : 0)
+        let s = try statement("SELECT s.id,s.source_id,s.path,s.name,s.folder,s.duration,s.sample_rate,s.channels,s.bpm,s.musical_key,s.category,s.tags,s.favorite,s.available,s.fingerprint,s.metadata_origin,s.kind,s.root_note FROM samples s\(join) WHERE \(predicate) ORDER BY \(order) LIMIT ? OFFSET ?", values)
         defer { sqlite3_finalize(s) }
         var samples: [Sample] = []
         var step = sqlite3_step(s)
@@ -179,7 +215,9 @@ public actor Catalog {
                            bpm: sqlite3_column_type(s, 8) == SQLITE_NULL ? nil : sqlite3_column_double(s, 8),
                            key: sqlite3_column_type(s, 9) == SQLITE_NULL ? nil : string(s, 9), category: string(s, 10), tags: string(s, 11), fingerprint: string(s, 14))
             v.id = sqlite3_column_int64(s, 0); v.favorite = sqlite3_column_int(s, 12) == 1
-            v.available = sqlite3_column_int(s, 13) == 1; v.metadataOrigin = string(s, 15); samples.append(v)
+            v.available = sqlite3_column_int(s, 13) == 1; v.metadataOrigin = string(s, 15)
+            v.kind = string(s, 16); v.rootNote = sqlite3_column_type(s, 17) == SQLITE_NULL ? nil : string(s, 17)
+            samples.append(v)
             step = sqlite3_step(s)
         }
         guard step == SQLITE_DONE else { throw failure() }
@@ -193,10 +231,11 @@ public actor Catalog {
 
 public enum HybridRanking {
     // Reciprocal rank fusion avoids pretending BM25 and cosine similarity share a scale.
-    public static func fuse(lexical: [Int64], semantic: [Int64], limit: Int = 200) -> [Int64] {
+    public static func fuse(lexical: [Int64], semantic: [Int64], limit: Int = .max) -> [Int64] {
         var scores: [Int64: Double] = [:]
         for (list, weight) in [(lexical, 1.15), (semantic, 1.0)] {
-            for (rank, id) in Array(NSOrderedSet(array: list)).compactMap({ $0 as? Int64 }).enumerated() {
+            var seen = Set<Int64>()
+            for (rank, id) in list.filter({ seen.insert($0).inserted }).enumerated() {
                 scores[id, default: 0] += weight / Double(60 + rank + 1)
             }
         }

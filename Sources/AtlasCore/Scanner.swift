@@ -38,11 +38,19 @@ public enum LibraryScanner {
                     let sample: Sample = try autoreleasepool {
                         let audio = try AVAudioFile(forReading: url)
                         let name = url.deletingPathExtension().lastPathComponent
-                        let folder = String(url.deletingLastPathComponent().path.dropFirst(root.path.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                        let relativeFolder = String(url.deletingLastPathComponent().path.dropFirst(root.path.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                        let folder = relativeFolder.isEmpty ? source.name : source.name + "/" + relativeFolder
+                        let kind = Metadata.kind(name: name, folder: folder)
                         var sample = Sample(sourceID: source.id, path: url.path, name: name, folder: folder,
                             duration: Double(audio.length) / audio.processingFormat.sampleRate, sampleRate: audio.processingFormat.sampleRate,
-                            channels: Int(audio.processingFormat.channelCount), bpm: Metadata.bpm(name), key: Metadata.key(name),
-                            category: Metadata.category(name + " " + folder), fingerprint: fingerprint)
+                            channels: Int(audio.processingFormat.channelCount), bpm: Metadata.bpm(name, kind: kind), key: Metadata.key(name),
+                            category: Metadata.category(name: name, folder: folder), fingerprint: fingerprint)
+                        sample.kind = kind; sample.rootNote = Metadata.rootNote(name)
+                        // Prefer filename values; use explicit labels in the closest folder as a fallback.
+                        for component in relativeFolder.split(separator: "/").reversed() {
+                            if sample.bpm == nil, let bpm = Metadata.bpm(String(component)) { sample.bpm = bpm; sample.metadataOrigin = "filename / folder labels" }
+                            if sample.key == nil, let key = Metadata.key(String(component)) { sample.key = key; sample.rootNote = sample.rootNote ?? String(key.split(separator: " ")[0]); sample.metadataOrigin = "filename / folder labels" }
+                        }
                         if let tempo = embeddedTempo(url), (30...300).contains(tempo) { sample.bpm = tempo; sample.metadataOrigin = "embedded tempo; filename key" }
                         return sample
                     }

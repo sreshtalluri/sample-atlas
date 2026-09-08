@@ -2,13 +2,20 @@
 
 Sample Atlas is a local-first macOS sample browser for Logic Pro. It brings sample packs, downloaded Splice sounds, and Apple audio loops into one fast library with preview and drag-and-drop.
 
+Start with the [step-by-step usage guide](docs/USAGE.md), including updating an existing library, using Logic, and optional semantic setup.
+
 ## What works
 
 - Add multiple sample folders and rescan them in the background.
+- Keep the local catalog across launches; watch registered folders and update after additions or changes.
 - Search filenames, folder names, tags, and categories with SQLite FTS5.
+- Search pack names and the full subfolder hierarchy; keep sweeps and risers distinct.
+- Scroll through every matching result, loading row details in pages.
 - Filter by source, category, BPM range, key, favorites, and unknown metadata.
+- Filter Loops, One-shots, or Unknown independently of instrument/effect type.
 - Parse explicit BPM/key tokens without inventing values. Add your own tags.
 - Preview with waveform, scrubbing, looping, and volume controls.
+- Click or keyboard-select a row to auto-preview; turn Auto-preview off when preferred.
 - Drag the original file into Logic or reveal it in Finder.
 - Optional local semantic search using a pinned CLAP audio/text model.
 - Incremental scanning and embedding caches preserve responsiveness and annotations.
@@ -23,21 +30,21 @@ This is an Xcode-compatible Swift Package for macOS 14 or later.
 swift run SampleAtlas
 ```
 
-Open `Package.swift` in Xcode to run and package it as a normal Mac application. The first launch asks you to choose folders. Add your local Splice folder from its configured Splice preferences, plus any pack folders and Apple audio-loop folders you use.
+Open `Package.swift` in Xcode to develop the app. On first launch, click Choose sample folders. Add your local Splice folder from its configured Splice preferences, plus any pack folders and Apple audio-loop folders you use.
 
 ## Use it privately
 
-Each person runs the same app against their own folders. The selected roots, security bookmarks, catalog database, favorites, custom tags, waveforms, and semantic embeddings are stored in that user's macOS Application Support directory. No library contents are part of the Git repository and the app has no upload service. You can safely use the public build with a private production library.
+Each person runs the same app against their own folders. The selected roots, security bookmarks, catalog database, favorites, custom tags, and semantic embeddings are stored in that user's macOS Application Support directory. Waveforms are computed for the preview in memory. Local settings use macOS preferences. No library contents are part of the Git repository and the app has no upload service.
 
 ## Install for yourself or others
 
-For development, clone the repository and run `swift run SampleAtlas`. For a standalone build, open `Package.swift` in Xcode and choose Product → Archive, or build the executable with:
+For development, clone the repository and run `swift run SampleAtlas`. To build a release executable:
 
 ```sh
 swift build -c release
 ```
 
-The GitHub Actions macOS workflow publishes a downloadable build artifact for each successful push. A future signed/notarized release can be installed by double-clicking like a normal Mac app; signing credentials are intentionally not stored in this repository.
+The GitHub Actions macOS workflow publishes a downloadable command-line executable artifact after a successful build. This is not yet a packaged, signed, notarized `.app` installer; use the source launch instructions above. Signing credentials are not stored in this repository.
 
 The project is also suitable as a portfolio demonstration: the README, plan, architecture, tests, CI, and optional semantic layer are public, while all personal audio remains local.
 
@@ -55,7 +62,7 @@ The semantic worker is intentionally optional: it adds a large model download an
 
 ## Search design
 
-Exact metadata filters are SQL predicates with indexes. Text queries are expanded through a small visible synonym map and ranked with FTS5 BM25. Semantic retrieval computes cosine similarity only among eligible IDs. When both modes are active, reciprocal-rank fusion combines the independent rankings without treating their scores as comparable. Query embeddings are LRU-cached and model inference is serialized through one resident worker.
+Exact metadata filters are SQL predicates with indexes. Text queries are expanded through a small visible synonym map and ranked with FTS5 BM25. A query snapshots all ranked IDs and loads row details in pages of 200 as you scroll; 200 is a page size, not a result cap. Semantic retrieval scores the resident vector matrix and returns the eligible IDs in cosine-similarity order. When both modes are active, reciprocal-rank fusion combines the independent rankings without treating their scores as comparable. Query embeddings are LRU-cached and model inference is serialized through one resident worker. Semantic results rank indexed sounds by similarity; they are not guaranteed exact matches to a description.
 
 Unknown BPM/key values remain unknown. Estimated values will carry their origin and confidence when automatic analysis is added.
 
@@ -66,7 +73,7 @@ swift test
 swift build
 ```
 
-Tests cover tempo/key parsing, synonyms, FTS query construction, and deterministic hybrid ranking. The scan and drag workflow should also be checked with a representative library and Logic Pro on a real Mac.
+Tests cover hierarchy and tempo/key parsing, FTS filters, pagination past 200 results, schema migration, annotation persistence, unchanged audio bytes, disconnected sources, and deterministic hybrid ranking. The semantic retrieval tests run without downloading a model: `cd semantic && .venv/bin/python -m unittest test_retrieval.py`. Real model quality, folder events, and dragging into Logic still need validation on a representative production library.
 
 ## Project status
 

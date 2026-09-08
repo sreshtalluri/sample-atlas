@@ -10,13 +10,14 @@ final class AppModel: ObservableObject {
     @Published var query = "" { didSet { scheduleSearch() } }
     @Published var sourceID: Int64? { didSet { scheduleSearch() } }
     @Published var category = "" { didSet { scheduleSearch() } }
+    @Published var kind = "" { didSet { scheduleSearch() } }
     @Published var musicalKey = "" { didSet { scheduleSearch() } }
     @Published var minBPM = "" { didSet { scheduleSearch() } }
     @Published var maxBPM = "" { didSet { scheduleSearch() } }
     @Published var favoritesOnly = false { didSet { scheduleSearch() } }
     @Published var unknownBPM = false { didSet { scheduleSearch() } }
     @Published var semanticEnabled = false { didSet { scheduleSearch() } }
-    @Published var selectedID: Int64? { didSet { loadSelection() } }
+    @Published var selectedID: Int64? { didSet { if selectedID != oldValue { loadSelection() } } }
     @Published var selected: Sample?
     @Published var peaks: [Float] = []
     @Published var isPlaying = false
@@ -29,6 +30,10 @@ final class AppModel: ObservableObject {
     @Published var error: String?
     @Published var count = 0
     @Published var searchStatus = ""
+    @Published var totalResults = 0
+    @Published var loadingMore = false
+    @Published var autoPreview = true
+    @Published var rowsRevision = 0
     @Published var semanticStatus = "Optional local sound search"
     @Published var semanticBusy = false
     @Published var semanticReady = false
@@ -46,18 +51,26 @@ final class AppModel: ObservableObject {
     private var timer: Timer?
     private var scopedURLs: [URL] = []
     private var searchGeneration = 0
+    private var rankedIDs: [Int64] = []
+    private var resultRequest = SearchRequest()
+    private var pageOffset = 0
+    private var resultRevision = 0
+    private var folderMonitor: FolderMonitor?
+    private var watchedPaths: [String] = []
+    private var pendingScan = false
+    private var changeTask: Task<Void, Never>?
 
     init() throws {
         support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Sample Atlas")
         try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
         catalog = try Catalog(path: support.appendingPathComponent("catalog.sqlite").path)
         timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self, let player = self.player else { return }
                 self.playhead = player.currentTime; self.isPlaying = player.isPlaying
             }
         }
-        Task { await reload(); restoreAccess(); scheduleSearch() }
+        Task { await reload(); restoreAccess(); scheduleSearch(); scan() }
     }
     private func restoreAccess() {
         for source in sources {
@@ -67,7 +80,21 @@ final class AppModel: ObservableObject {
         }
     }
     func reload() async {
-        do { sources = try await catalog.sources(); count = try await catalog.count() } catch { self.error = error.localizedDescription }
+        do {
+            sources = try await catalog.sources(); count = try await catalog.count()
+            let paths = sources.map(\.path)
+            if paths != watchedPaths {
+                watchedPaths = paths
+                folderMonitor = FolderMonitor(paths: paths) { [weak self] in self?.foldersChanged() }
+            }
+        } catch { self.error = error.localizedDescription }
+    }
+    private func foldersChanged() {
+        changeTask?.cancel()
+        changeTask = Task {
+            do { try await Task.sleep(for: .seconds(2)) } catch { return }
+            if scanning { pendingScan = true } else { scan() }
+        }
     }
     func addFolders() {
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
@@ -96,6 +123,7 @@ final class AppModel: ObservableObject {
     func scan(_ targets: [LibrarySource]? = nil) {
         guard !scanning else { return }
         let selectedSources = targets ?? sources
+        guard !selectedSources.isEmpty else { return }
         scanning = true; scanErrors = []
         scanTask = Task {
             for source in selectedSources {
@@ -117,16 +145,19 @@ final class AppModel: ObservableObject {
             }
             scanning = false
             if !scanErrors.isEmpty { scanStatus = "Scan finished with \(scanErrors.count) reported issues" }
+            if pendingScan && !Task.isCancelled { pendingScan = false; scan() }
         }
     }
-    func cancelScan() { scanTask?.cancel() }
+    func cancelScan() { pendingScan = false; scanTask?.cancel() }
     var request: SearchRequest {
-        var r = SearchRequest(text: query); r.sourceID = sourceID; r.category = category; r.key = musicalKey
+        var r = SearchRequest(text: query); r.sourceID = sourceID; r.category = category; r.kind = kind; r.key = musicalKey
         r.minBPM = Double(minBPM); r.maxBPM = Double(maxBPM); r.unknownBPM = unknownBPM; r.favoritesOnly = favoritesOnly
         return r
     }
     func scheduleSearch() {
         searchGeneration += 1
+        resultRevision += 1
+        rankedIDs = []; totalResults = 0; loadingMore = false
         let generation = searchGeneration
         searchTask?.cancel()
         searchTask = Task {
@@ -134,13 +165,13 @@ final class AppModel: ObservableObject {
                 try await Task.sleep(for: .milliseconds(140))
                 let r = request
                 if (!minBPM.isEmpty && r.minBPM == nil) || (!maxBPM.isEmpty && r.maxBPM == nil) || ((r.minBPM ?? 0) > (r.maxBPM ?? .infinity)) {
-                    searchStatus = "Enter a valid BPM range"; results = []; return
+                    searchStatus = "Enter a valid BPM range"; results = []; rowsRevision += 1; return
                 }
                 let start = ContinuousClock.now
-                let lexical = try await catalog.search(r)
+                let lexical = try await catalog.matchingIDs(r)
                 try Task.checkCancellation()
-                results = lexical
-                searchStatus = "\(lexical.count) results\(lexical.count == r.limit ? " (first 200)" : "") · \(Int(start.duration(to: .now).milliseconds)) ms"
+                try await present(lexical, request: r, generation: generation)
+                searchStatus = "\(lexical.count.formatted()) matches · \(Int(start.duration(to: .now).milliseconds)) ms"
                 if semanticEnabled && semanticReady && !semanticBusy && !query.trimmingCharacters(in: .whitespaces).isEmpty {
                     semanticBusy = true
                     defer {
@@ -150,12 +181,34 @@ final class AppModel: ObservableObject {
                     let ids = try await catalog.eligibleIDs(r)
                     let semantic = try await worker.request("search", text: r.text, ids: ids)
                     guard generation == searchGeneration else { return }
-                    let fused = HybridRanking.fuse(lexical: lexical.map(\.id), semantic: semantic)
-                    results = try await catalog.search(r, rankedIDs: fused)
-                    searchStatus = "\(results.count) hybrid results · \(Int(start.duration(to: .now).milliseconds)) ms"
+                    let fused = HybridRanking.fuse(lexical: lexical, semantic: semantic)
+                    try await present(fused, request: r, generation: generation)
+                    searchStatus = "\(fused.count.formatted()) ranked sounds · \(Int(start.duration(to: .now).milliseconds)) ms"
                 }
             } catch is CancellationError { }
             catch { if generation == searchGeneration { self.error = error.localizedDescription } }
+        }
+    }
+    private func present(_ ids: [Int64], request: SearchRequest, generation: Int) async throws {
+        let page = try await catalog.search(request, rankedIDs: ids)
+        guard generation == searchGeneration else { return }
+        resultRevision += 1; rankedIDs = ids; resultRequest = request; pageOffset = min(request.limit, ids.count)
+        totalResults = ids.count; results = page; rowsRevision += 1; loadingMore = false
+    }
+    var hasMore: Bool { pageOffset < rankedIDs.count }
+    func loadMore() {
+        guard hasMore, !loadingMore else { return }
+        loadingMore = true
+        let revision = resultRevision
+        var r = resultRequest; r.offset = pageOffset
+        let ids = rankedIDs
+        Task {
+            do {
+                let page = try await catalog.search(r, rankedIDs: ids)
+                guard revision == resultRevision else { return }
+                pageOffset = min(ids.count, r.offset + r.limit)
+                results.append(contentsOf: page); rowsRevision += 1; loadingMore = false
+            } catch { if revision == resultRevision { loadingMore = false; self.error = error.localizedDescription } }
         }
     }
     func toggleFavorite(_ sample: Sample) {
@@ -165,7 +218,7 @@ final class AppModel: ObservableObject {
         guard let selected else { return }
         Task { do { try await catalog.setTags(selected.id, tagsDraft); scheduleSearch() } catch { self.error = error.localizedDescription } }
     }
-    func resetFilters() { category = ""; musicalKey = ""; minBPM = ""; maxBPM = ""; unknownBPM = false; favoritesOnly = false }
+    func resetFilters() { category = ""; kind = ""; musicalKey = ""; minBPM = ""; maxBPM = ""; unknownBPM = false; favoritesOnly = false }
     func reveal(_ sample: Sample) { NSWorkspace.shared.activateFileViewerSelecting([sample.url]) }
     private func loadSelection() {
         previewTask?.cancel(); player?.stop(); player = nil; isPlaying = false; playhead = 0; peaks = []
@@ -179,9 +232,15 @@ final class AppModel: ObservableObject {
                 let audio = try AVAudioPlayer(contentsOf: url)
                 audio.volume = Float(volume); audio.numberOfLoops = looping ? -1 : 0; audio.prepareToPlay()
                 peaks = loaded; player = audio
+                if autoPreview { audio.play(); isPlaying = audio.isPlaying }
             } catch is CancellationError { }
             catch { self.error = "Could not preview \(url.lastPathComponent): \(error.localizedDescription)" }
         }
+    }
+    func clicked(_ id: Int64) {
+        if selectedID == id {
+            if autoPreview { player?.currentTime = 0; player?.play(); isPlaying = player?.isPlaying ?? false }
+        } else { selectedID = id }
     }
     func togglePlayback() {
         guard let player else { return }

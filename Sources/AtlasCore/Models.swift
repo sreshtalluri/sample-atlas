@@ -23,6 +23,8 @@ public struct Sample: Identifiable, Sendable, Hashable {
     public var key: String?
     public var category: String
     public var tags: String
+    public var kind: String = "Unknown"
+    public var rootNote: String?
     public var favorite: Bool = false
     public var available: Bool = true
     public var fingerprint: String
@@ -41,6 +43,7 @@ public struct SearchRequest: Sendable, Equatable {
     public var text = ""
     public var sourceID: Int64?
     public var category = ""
+    public var kind = ""
     public var key = ""
     public var minBPM: Double?
     public var maxBPM: Double?
@@ -48,6 +51,7 @@ public struct SearchRequest: Sendable, Equatable {
     public var unknownBPM = false
     public var includeUnavailable = false
     public var limit = 200
+    public var offset = 0
     public init(text: String = "") { self.text = text }
 }
 

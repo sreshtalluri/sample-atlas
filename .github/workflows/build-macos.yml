@@ -13,11 +13,12 @@ jobs:
       - name: Package build artifact
         run: |
           mkdir -p dist/SampleAtlas
-          cp .build/arm64-apple-macosx/release/SampleAtlas dist/SampleAtlas/
+          atlas_bin="$(swift build -c release --show-bin-path)"
+          cp "$atlas_bin/SampleAtlas" dist/SampleAtlas/
           cp README.md LICENSE dist/SampleAtlas/
-          ditto -c -k --keepParent dist/SampleAtlas dist/SampleAtlas-macos-arm64.zip
+          ditto -c -k --keepParent dist/SampleAtlas dist/SampleAtlas-macos.zip
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
-          name: SampleAtlas-macos-arm64
-          path: dist/SampleAtlas-macos-arm64.zip
+          name: SampleAtlas-macos
+          path: dist/SampleAtlas-macos.zip

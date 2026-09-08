@@ -37,7 +37,7 @@ def unit_rows(values):
     return values / norms
 
 
-def filtered_top_k(matrix, sample_ids, query, eligible_ids, k=200):
+def filtered_top_k(matrix, sample_ids, query, eligible_ids, k=None):
     """Exact filtered cosine search; stable tie ordering and no postfilter recall loss."""
     if not len(sample_ids) or not eligible_ids:
         return []
@@ -48,7 +48,7 @@ def filtered_top_k(matrix, sample_ids, query, eligible_ids, k=200):
     # Score the resident contiguous matrix without copying potentially hundreds of MB.
     all_scores = matrix @ query
     scores = all_scores[positions]
-    take = min(k, len(scores))
+    take = len(scores) if k is None else min(max(0, k), len(scores))
     if take == 0:
         return []
     # Include boundary ties, then sort by score and ID for deterministic retrieval.

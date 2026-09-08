@@ -1,11 +1,14 @@
 import Foundation
 
 public enum Metadata {
-    public static let categories = ["Riser", "Impact", "Kick", "Snare", "Hi-hat", "Percussion", "Drums", "Bass", "Vocal", "Pad", "Synth", "Piano", "Guitar", "FX", "Other"]
+    public static let version = 2
+    public static let categories = ["Riser", "Sweep", "Downlifter", "Impact", "Kick", "Snare", "Clap", "Hi-hat", "Percussion", "Drums", "Bass", "Vocal", "Pad", "Synth", "Piano", "Guitar", "FX", "Other"]
     public static let synonyms: [String: [String]] = [
-        "riser": ["riser", "risers", "uplifter", "uplifters", "rise", "build", "sweep"],
+        "riser": ["riser", "risers", "uplifter", "uplifters", "rise"],
+        "sweep": ["sweep", "sweeps", "whoosh", "whooshes", "swoosh"],
+        "downlifter": ["downlifter", "downlifters", "downer", "downers"],
         "impact": ["impact", "impacts", "hit", "boom"],
-        "kick": ["kick", "kicks", "bd"], "snare": ["snare", "snares", "clap", "sd"],
+        "kick": ["kick", "kicks", "bd"], "snare": ["snare", "snares", "sd"], "clap": ["clap", "claps"],
         "hihat": ["hihat", "hat", "hats", "hh"], "percussion": ["percussion", "perc", "conga", "shaker"],
         "drums": ["drums", "drum", "break", "breakbeat"], "bass": ["bass", "sub", "808"],
         "vocal": ["vocal", "vocals", "vox", "voice"], "pad": ["pad", "pads", "atmosphere", "ambient"],
@@ -23,12 +26,46 @@ public enum Metadata {
             return !(words.intersection(synonyms[key] ?? [])).isEmpty
         } ?? "Other"
     }
-    public static func bpm(_ name: String) -> Double? {
+    public static func category(name: String, folder: String) -> String {
+        let named = category(name)
+        if !["Other", "Drums", "FX"].contains(named) { return named }
+        for component in folder.split(separator: "/").reversed() {
+            let candidate = category(String(component))
+            if candidate != "Other" { return candidate }
+        }
+        return named
+    }
+    public static func kind(name: String, folder: String) -> String {
+        for component in [name] + folder.split(separator: "/").reversed().map(String.init) {
+            let words = tokens(component)
+            if words.contains("oneshot") || words.contains("oneshots") || words.joined(separator: " ").contains("one shot") { return "One-shot" }
+            if words.contains("loop") || words.contains("loops") { return "Loop" }
+        }
+        return "Unknown"
+    }
+    public static func rootNote(_ name: String) -> String? {
+        if let key = key(name) { return String(key.split(separator: " ")[0]) }
+        // A final pitch label is a root note, not evidence of a major/minor key.
+        guard let note = capture(#"(?:[_ -])([A-G](?:#|b|♯|♭)?)(?:[_ -]\d{1,3})?$"#, in: name),
+              let key = normalizeKey(note + " major") else { return nil }
+        return String(key.split(separator: " ")[0])
+    }
+    public static func bpm(_ name: String, kind: String = "Unknown") -> Double? {
         // Require an explicit BPM marker: pack numbers and 808 are not tempos.
         let patterns = [#"(?i)(?:^|[^a-z0-9])(\d{2,3}(?:\.\d+)?)\s*[-_ ]?bpm(?:$|[^a-z])"#,
                         #"(?i)(?:^|[^a-z])bpm\s*[-_ ]?(\d{2,3}(?:\.\d+)?)(?:$|[^0-9])"#]
         for pattern in patterns {
             if let value = capture(pattern, in: name), let number = Double(value), (30...300).contains(number) { return number }
+        }
+        // Bare tempo numbers are accepted only with loop context or a pitch label,
+        // and only when there is one plausible candidate. Pack versions and hit IDs
+        // remain ambiguous; audio-derived estimation is a separate future step.
+        if kind == "Loop" || key(name) != nil || rootNote(name) != nil {
+            let candidates = tokens(name).compactMap { term -> Double? in
+                guard term.count >= 2, !term.hasPrefix("0"), let value = Double(term), (50...240).contains(value) else { return nil }
+                return value
+            }
+            if candidates.count == 1 { return candidates[0] }
         }
         return nil
     }

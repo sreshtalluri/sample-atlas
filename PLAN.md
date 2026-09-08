@@ -1,6 +1,8 @@
 # Sample Atlas — working product plan
 
-Status: proposal for discussion, before implementation. Name is provisional.
+Status: original design proposal with an implemented first version. See README.md and docs/USAGE.md for current behavior.
+
+Implemented since this proposal: persistent catalog, full hierarchy text search, specific categories, kind/root-note labels, paged browsing without a result cap, native row dragging, auto-preview, filesystem-triggered incremental scans, and optional semantic retrieval. Original acceptance checks in Logic and real-library semantic evaluation remain open.
 
 ## Outcome
 

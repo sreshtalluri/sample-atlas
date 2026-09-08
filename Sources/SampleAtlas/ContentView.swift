@@ -112,6 +112,7 @@ struct ContentView: View {
                     Text("Any key").tag(""); Text("Unknown").tag("Unknown")
                     ForEach(["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"], id: \.self) { note in
                         Text(note + " major").tag(note + " major"); Text(note + " minor").tag(note + " minor")
+                        Text(note + " (root note)").tag("root:" + note)
                     }
                 }.frame(width: 175)
                 Text("BPM").foregroundStyle(.secondary)
@@ -121,6 +122,15 @@ struct ContentView: View {
                 Toggle("Unknown", isOn: $model.unknownBPM).toggleStyle(.checkbox)
                 Spacer(minLength: 0)
                 Button("Reset") { model.resetFilters() }.buttonStyle(.plain).foregroundStyle(.secondary)
+            }.controlSize(.small)
+            HStack {
+                Picker("Kind", selection: $model.kind) {
+                    Text("All sounds").tag("")
+                    Text("Loops").tag("Loop"); Text("One-shots").tag("One-shot"); Text("Unknown").tag("Unknown")
+                }.frame(width: 210)
+                Spacer()
+                Toggle("Auto-preview", isOn: $model.autoPreview).toggleStyle(.checkbox)
+                    .help("Play when selecting a sound; use Space to pause")
             }.controlSize(.small)
             HStack {
                 Text(model.searchStatus).font(.caption).foregroundStyle(.secondary)
@@ -142,33 +152,18 @@ struct ContentView: View {
     }
     private var results: some View {
         VStack(spacing: 0) {
-            Table(model.results, selection: $model.selectedID) {
-                TableColumn("Sound") { sample in
-                    HStack(spacing: 10) {
-                        Image(systemName: "waveform").foregroundStyle(accent.opacity(0.8))
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(sample.name).font(.system(size: 13, weight: .medium)).lineLimit(1)
-                            Text(sample.folder.isEmpty ? sample.url.deletingLastPathComponent().lastPathComponent : sample.folder).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                        }
-                    }.padding(.vertical, 5).onDrag { NSItemProvider(object: sample.url as NSURL) }
-                    .contextMenu {
-                        Button("Reveal in Finder") { model.reveal(sample) }
-                        Button(sample.favorite ? "Remove Favorite" : "Favorite") { model.toggleFavorite(sample) }
-                    }
-                }.width(min: 240, ideal: 380)
-                TableColumn("Type", value: \.category).width(85)
-                TableColumn("BPM") { Text(sampleBPM($0)).monospacedDigit().foregroundStyle($0.bpm == nil ? .tertiary : .secondary) }.width(48)
-                TableColumn("Key") { Text($0.key ?? "—").foregroundStyle(.secondary) }.width(85)
-                TableColumn("Length") { Text(String(format: "%.2fs", $0.duration)).monospacedDigit().foregroundStyle(.secondary) }.width(60)
-                TableColumn("★") { sample in
-                    Button { model.toggleFavorite(sample) } label: { Image(systemName: sample.favorite ? "star.fill" : "star").foregroundStyle(sample.favorite ? accent : .gray) }.buttonStyle(.plain).accessibilityLabel(sample.favorite ? "Remove favorite" : "Favorite sample")
-                }.width(25)
+            SampleTable(model: model)
+            if model.hasMore || model.loadingMore {
+                HStack {
+                    Text("\(model.results.count.formatted()) of \(model.totalResults.formatted()) loaded · scroll for more").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Load more") { model.loadMore() }.disabled(model.loadingMore)
+                    if model.loadingMore { ProgressView().controlSize(.small) }
+                }.padding(8)
             }
-            .onKeyPress(.space) { model.togglePlayback(); return .handled }
             if model.results.isEmpty { Text(model.scanning ? "Your library is being indexed…" : "No matching samples. Try fewer filters or a broader search.").foregroundStyle(.secondary).padding(24) }
         }.frame(maxHeight: .infinity)
     }
-    private func sampleBPM(_ s: Sample) -> String { s.bpm.map { String(format: "%g", $0) } ?? "—" }
     private var preview: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let sample = model.selected {
