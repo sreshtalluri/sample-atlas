@@ -43,7 +43,10 @@ public actor SemanticWorker {
                 if let status = message["progress"] as? String { await progress(status); continue }
                 return (message["ids"] as? [NSNumber] ?? []).map(\.int64Value)
             }
-            guard let chunk = try output.read(upToCount: 4096), !chunk.isEmpty else { throw CatalogError(message: "Semantic worker exited. Check its Python environment and model files.") }
+            // read(upToCount:) keeps reading a pipe until the count is filled, so a short
+            // final reply would never surface. availableData returns whatever has arrived.
+            let chunk = output.availableData
+            guard !chunk.isEmpty else { throw CatalogError(message: "Semantic worker exited. Check its Python environment and model files.") }
             buffer.append(chunk)
             if buffer.count > 4_000_000 { throw CatalogError(message: "Invalid semantic worker response.") }
         }
