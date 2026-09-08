@@ -84,7 +84,7 @@ Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run 
 
 Open **Sound search settings**, paste the Python and worker paths printed by the script, then click **Build / Update Sound Index**. Initial setup downloads dependencies and a model; audio analysis and later searches run locally. When ready, enable **Search by sound**.
 
-After relaunching, use **Load Existing Index**. After adding sounds, update the sound index manually. This feature is experimental: real-library relevance and speed still need evaluation. It does not supply missing BPM/key values.
+On later launches the saved index loads automatically and the **Search by sound** switch remembers its state; **Load Existing Index** remains for manual retries. After adding sounds, update the sound index manually. This feature is experimental: real-library relevance and speed still need evaluation. It does not supply missing BPM/key values.
 
 ## Development and roadmap
 
