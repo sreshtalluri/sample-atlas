@@ -1,7 +1,7 @@
 import Foundation
 
 public enum Metadata {
-    public static let version = 3
+    public static let version = 4
     public static let categories = ["Riser", "Sweep", "Downlifter", "Impact", "Kick", "Snare", "Clap", "Hi-hat", "Percussion", "Drums", "Bass", "Vocal", "Pad", "Synth", "Piano", "Guitar", "FX", "Other"]
     public static let synonyms: [String: [String]] = [
         "riser": ["riser", "risers", "uplifter", "uplifters", "rise"],
@@ -35,20 +35,29 @@ public enum Metadata {
         }
         return named
     }
+    private static let hits: Set<String> = ["Kick", "Snare", "Clap", "Hi-hat", "Percussion", "Impact"]
+    static func labeledKind(_ text: String) -> String? {
+        let words = tokens(text)
+        if words.contains("oneshot") || words.contains("oneshots") || words.joined(separator: " ").contains("one shot") { return "One-shot" }
+        if words.contains("loop") || words.contains("loops") { return "Loop" }
+        return nil
+    }
+    /// Explicit labels win. Otherwise a named drum hit is a one-shot even when tempo-tagged,
+    /// anything carrying a tempo is a loop, and untimed sounds (FX, foley, phrases) are
+    /// one-shots, matching how Splice labels the same packs.
     public static func kind(name: String, folder: String) -> String {
-        for component in [name] + folder.split(separator: "/").reversed().map(String.init) {
-            let words = tokens(component)
-            if words.contains("oneshot") || words.contains("oneshots") || words.joined(separator: " ").contains("one shot") { return "One-shot" }
-            if words.contains("loop") || words.contains("loops") { return "Loop" }
-        }
-        return "Unknown"
+        let components = [name] + folder.split(separator: "/").reversed().map(String.init)
+        if let labeled = components.lazy.compactMap(labeledKind).first { return labeled }
+        if hits.contains(category(name)) { return "One-shot" }
+        if components.contains(where: { bpm($0) != nil }) { return "Loop" }
+        return "One-shot"
     }
     public static func rootNote(_ name: String) -> String? {
         if let key = key(name) { return String(key.split(separator: " ")[0]) }
         let text = normalizedLabels(stem(name))
         // Delimited pitch tokens may appear before the tempo or sample description.
         // Bare notes in natural-language phrases ("A warm pad") are not root labels.
-        let delimited = captures(#"(?:[_\[\](){}-])\s*([A-Ga-g](?:#|b)?)(?=$|[_\[\](){}\s-])"#, in: text)
+        let delimited = captures(#"(?:[_\[\](){},-])\s*([A-Ga-g](?:#|b)?)(?=$|[_\[\](){}\s-])"#, in: text)
         let terminal = captures(#"(?:^|\s)([A-G](?:#|b)?)(?:\s+\d{1,3})?$"#, in: text)
         let notes = Set((delimited + terminal).compactMap { note in normalizeKey(note + " major").map { String($0.split(separator: " ")[0]) } })
         return notes.count == 1 ? notes.first : nil
@@ -57,13 +66,15 @@ public enum Metadata {
         let text = normalizedLabels(stem(name))
         // Accept common tag separators and decimals without splitting 127.5 into 127.
         let patterns = [#"(?i)(?:^|[^a-z0-9.])(\d{2,3}(?:[.,]\d+)?)\s*[_:= -]*bpm(?:$|[^a-z])"#,
-                        #"(?i)(?:^|[^a-z])bpm\s*[_:= -]*(\d{2,3}(?:[.,]\d+)?)(?=$|[^0-9.])"#]
+                        #"(?i)(?:^|[^a-z])bpm\s*[_:= -]*(\d{2,3}(?:[.,]\d+)?)(?=$|[^0-9.])"#,
+                        // "(120, Gm)" pack convention: tempo then key inside one parenthesis.
+                        #"\((\d{2,3}(?:[.,]\d+)?)\s*,\s*[A-Ga-g][#b]?(?:minor|major|min|maj|m)?\s*\)"#]
         let explicit = Set(patterns.flatMap { captures($0, in: text) }.compactMap { Double($0.replacingOccurrences(of: ",", with: ".")) }.filter { (30...300).contains($0) })
         if !explicit.isEmpty { return explicit.count == 1 ? explicit.first : nil }
         // Bare tempo numbers are accepted only with loop context or a pitch label,
         // and only when there is one plausible candidate. Pack versions and hit IDs
         // remain ambiguous; audio-derived estimation is a separate future step.
-        let effectiveKind = kind == "Unknown" ? self.kind(name: text, folder: "") : kind
+        let effectiveKind = kind == "Unknown" ? (labeledKind(text) ?? "Unknown") : kind
         if effectiveKind != "One-shot" && (effectiveKind == "Loop" || key(text) != nil || rootNote(text) != nil) {
             let candidates = captures(#"(?:^|[_\[\](){}\s-])(\d{2,3}(?:[.,]\d+)?)(?=$|[_\[\](){}\s-])"#, in: text).compactMap { term -> Double? in
                 guard !term.hasPrefix("0"), let value = Double(term.replacingOccurrences(of: ",", with: ".")), (50...240).contains(value) else { return nil }

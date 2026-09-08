@@ -11,7 +11,7 @@ final class LibraryTests: XCTestCase {
         XCTAssertEqual(Metadata.category(name: "Kick_01", folder: "KSHMR/Drums/Claps"), "Kick")
         XCTAssertEqual(Metadata.kind(name: "Bass_01_C", folder: "KSHMR/Bass/One Shots"), "One-shot")
         XCTAssertEqual(Metadata.kind(name: "Kick_Loop_128", folder: "Drums/One Shots"), "Loop")
-        XCTAssertEqual(Metadata.kind(name: "Kick_01", folder: "Drums/Kicks"), "Unknown")
+        XCTAssertEqual(Metadata.kind(name: "Kick_01", folder: "Drums/Kicks"), "One-shot")
         XCTAssertEqual(Metadata.rootNote("Bass_01_Db"), "C#")
         XCTAssertNil(Metadata.key("Bass_01_C"))
         XCTAssertEqual(Metadata.bpm("KSHMR_Drum_Loop_128", kind: "Loop"), 128)

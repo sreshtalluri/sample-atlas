@@ -57,8 +57,9 @@ The app reads filename labels and available metadata; it does not yet estimate m
 | `Synth_127.5_BPM_F#min.wav` | 127.5 BPM, F-sharp minor |
 | `Riser_03_(A).wav` | A root note; BPM unknown |
 | `Bass_C_M.wav` / `Bass_Cm.wav` | C major / C minor |
+| `Sax Loop 65 (120, Gm).wav` | 120 BPM, G minor; `65` is a take number |
 
-A one-shot can have a root note without a meaningful tempo. Ambiguous or absent values remain `—`. BPM/key filters can therefore hide untagged sounds; reset filters if expected results are missing.
+Every sound is a loop or a one-shot. Explicit `loop`/`one shot` labels in the name or folder win; otherwise named drum hits are one-shots, anything tagged with a tempo is a loop, and untimed sounds (FX, foley, vocal phrases) are one-shots. A one-shot can have a root note without a meaningful tempo. Ambiguous or absent values remain `—`. BPM/key filters can therefore hide untagged sounds; reset filters if expected results are missing.
 
 ## Updates and private data
 
