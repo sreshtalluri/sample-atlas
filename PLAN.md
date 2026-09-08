@@ -20,11 +20,28 @@ Implemented does not mean fully validated in every Logic/audio-interface setup. 
 | Priority | Work | Acceptance check |
 | --- | --- | --- |
 | 1 | Validate the daily workflow | Browse a representative pack, audition rapidly, drag into Logic, relaunch, and add a file while the app watches the folder. |
-| 2 | Simplify installation | Ship a proper `.app` bundle, then signed/notarized releases when signing is available. |
-| 3 | Improve musical metadata | Analyze missing tempo/key, distinguish one-shot root pitch, expose confidence, and preserve user corrections. |
+| 2 | Simplify installation | Ship a proper `.app` bundle with self-provisioning sound search (plan below), then signed/notarized releases when signing is available. |
+| 3 | Improve musical metadata | Estimate tempo only for loops that still lack one (about 1% after the label parser), never invent tempo/key for one-shots or FX, expose confidence, and preserve user corrections. |
 | 4 | Evaluate semantic retrieval | Run known production queries, measure relevance and latency, expose index coverage, and add similar-sound search. |
 | 5 | Improve large-library navigation | Add folder-tree browsing, duration filters, duplicate grouping, moved-library relinking, and clearer offline status. |
 | 6 | Match the production session | Add audio-output selection, tempo/pitch-matched preview, and investigate optional Logic transport integration. |
+
+### Plan: `.app` bundle with bundled `uv` (not started)
+
+Goal: a double-clickable `Sample Atlas.app` where sound search needs no terminal, no Python install and no repository checkout. The bundle stays immutable (required for signing); everything mutable lives in `~/Library/Application Support/Sample Atlas/`.
+
+Why `uv` rather than bundling Python: the worker needs PyTorch (~2 GB). Shipping it inside the bundle means a multi-gigabyte download and signing every dylib for notarization. `uv` is one ~15 MB static binary (MIT/Apache licensed) that can install a pinned Python 3.12 and the locked dependencies on demand.
+
+| Step | Work | Acceptance check |
+| --- | --- | --- |
+| B1 | `scripts/make-app.sh`: `swift build -c release`, assemble `Contents/MacOS/SampleAtlas`, `Contents/Info.plist` (bundle ID, `LSMinimumSystemVersion` 14.0, `NSMicrophoneUsageDescription` not needed, `LSApplicationCategoryType` music), app icon, then `codesign --force --deep -s -` (ad hoc). | `open "Sample Atlas.app"` launches from Finder on a Mac without Xcode tools; text search and preview work with no other setup. |
+| B2 | Copy into `Contents/Resources/semantic/`: `worker.py`, `pyproject.toml`, `uv.lock`, `model-revision.txt`, and `uv` binaries for arm64 and x86_64 (downloaded at build time from the pinned uv release, checksum verified). | Bundle size grows by <40 MB; `codesign --verify --deep` passes. |
+| B3 | App-side provisioning: a "Set up sound search" button copies `pyproject.toml`/`uv.lock` to `Application Support/Sample Atlas/semantic-env/` and runs the bundled `uv sync --frozen --python 3.12` there, streaming progress into `semanticStatus`, cancellable. `pythonPath`/`workerPath` default to the provisioned interpreter and the bundled worker; the existing text fields stay as an advanced override. | On a clean user account with no Python, one click yields "Ready" after the download; quitting mid-install and clicking again resumes; `autoLoadSemantic` works on the next launch. |
+| B4 | Failure handling: no network, disk full, uv exit code, and Gatekeeper blocking the extracted `uv` binary (mark it executable and strip quarantine on copy). Messages name the fix, never a stack trace. | Each failure is reproduced once and shows an actionable status line. |
+| B5 | Release: `build-macos.yml` produces the zipped `.app` as the artifact/Release asset instead of the bare executable; README replaces `swift run` with download-and-open plus the right-click → Open note for unsigned builds. | A fresh download from the Releases page runs on another Mac. |
+| B6 | Later, with a Developer ID: `codesign` with hardened runtime, `notarytool submit`, staple; remove the right-click → Open note. | Gatekeeper opens the app with no warning. |
+
+Out of scope for this plan: converting CLAP to Core ML (removes Python entirely; revisit only after sound search proves useful on a real library), auto-updating, and Mac App Store distribution (sandboxing would block spawning `uv`).
 
 ## Engineering constraints
 
