@@ -25,6 +25,22 @@ swift run SampleAtlas
 
 Open `Package.swift` in Xcode to run and package it as a normal Mac application. The first launch asks you to choose folders. Add your local Splice folder from its configured Splice preferences, plus any pack folders and Apple audio-loop folders you use.
 
+## Use it privately
+
+Each person runs the same app against their own folders. The selected roots, security bookmarks, catalog database, favorites, custom tags, waveforms, and semantic embeddings are stored in that user's macOS Application Support directory. No library contents are part of the Git repository and the app has no upload service. You can safely use the public build with a private production library.
+
+## Install for yourself or others
+
+For development, clone the repository and run `swift run SampleAtlas`. For a standalone build, open `Package.swift` in Xcode and choose Product → Archive, or build the executable with:
+
+```sh
+swift build -c release
+```
+
+The GitHub Actions macOS workflow publishes a downloadable build artifact for each successful push. A future signed/notarized release can be installed by double-clicking like a normal Mac app; signing credentials are intentionally not stored in this repository.
+
+The project is also suitable as a portfolio demonstration: the README, plan, architecture, tests, CI, and optional semantic layer are public, while all personal audio remains local.
+
 ## Optional sound search
 
 Text search works without Python or a model. To enable descriptions such as `dark airy riser`:

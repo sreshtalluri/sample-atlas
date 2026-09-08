@@ -1,0 +1,23 @@
+name: Build macOS app
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build release executable
+        run: swift build -c release
+      - name: Package build artifact
+        run: |
+          mkdir -p dist/SampleAtlas
+          cp .build/arm64-apple-macosx/release/SampleAtlas dist/SampleAtlas/
+          cp README.md LICENSE dist/SampleAtlas/
+          ditto -c -k --keepParent dist/SampleAtlas dist/SampleAtlas-macos-arm64.zip
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: SampleAtlas-macos-arm64
+          path: dist/SampleAtlas-macos-arm64.zip
