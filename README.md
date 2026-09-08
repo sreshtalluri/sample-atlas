@@ -1,90 +1,104 @@
 # Sample Atlas
 
-Sample Atlas is a local-first macOS sample browser for Logic Pro. It brings sample packs, downloaded Splice sounds, and Apple audio loops into one fast library with preview and drag-and-drop.
+A Mac app for finding sounds across your sample packs, downloaded Splice library, and installed Apple audio loops. Search in one place, click to listen, then drag a sound into Logic Pro.
 
-Start with the [step-by-step usage guide](docs/USAGE.md), including updating an existing library, using Logic, and optional semantic setup.
+Your audio stays in its original folders. Each user has a private local catalog; the public repository contains the app's code, not anyone's sound library.
 
-## What works
+## What it does
 
-- Add multiple sample folders and rescan them in the background.
-- Keep the local catalog across launches; watch registered folders and update after additions or changes.
-- Search filenames, folder names, tags, and categories with SQLite FTS5.
-- Search pack names and the full subfolder hierarchy; keep sweeps and risers distinct.
-- Scroll through every matching result, loading row details in pages.
-- Filter by source, category, BPM range, key, favorites, and unknown metadata.
-- Filter Loops, One-shots, or Unknown independently of instrument/effect type.
-- Parse explicit BPM/key tokens without inventing values. Add your own tags.
-- Preview with waveform, scrubbing, looping, and volume controls.
-- Click or keyboard-select a row to auto-preview; turn Auto-preview off when preferred.
-- Drag the original file into Logic or reveal it in Finder.
-- Optional local semantic search using a pinned CLAP audio/text model.
-- Incremental scanning and embedding caches preserve responsiveness and annotations.
+- Searches filenames, pack names, subfolders, and your own tags.
+- Filters by instrument/effect type, loop or one-shot, BPM, key/root note, and favorites.
+- Previews on selection, with waveform, volume, looping, and scrubbing.
+- Lets you drag directly from a result row into Logic, or reveal the original in Finder.
+- Scrolls through all matching results, loading rows as needed.
+- Saves your catalog between sessions and watches added folders for changes.
+- Offers experimental local audio-based search for descriptions such as `airy noise riser`.
 
-The app never moves or copies your audio. Its catalog lives in `~/Library/Application Support/Sample Atlas/` and is excluded from this repository. This public repository contains source code, documentation, and synthetic metadata tests only; it contains no personal sample files, library paths, catalog databases, credentials, or model weights.
+## Get started
 
-## Run the app
+You need **macOS 14 or later** and **Xcode 15.3 or later with Swift 5.10+**. Open Xcode once to finish its setup. Ordinary library search does not require Python or an account. Logic Pro is only needed for the Logic workflow.
 
-This is an Xcode-compatible Swift Package for macOS 14 or later.
+In Terminal, from a directory where you keep projects:
 
 ```sh
+git clone https://github.com/sreshtalluri/sample-atlas.git
+cd sample-atlas
 swift run SampleAtlas
 ```
 
-Open `Package.swift` in Xcode to develop the app. On first launch, click Choose sample folders. Add your local Splice folder from its configured Splice preferences, plus any pack folders and Apple audio-loop folders you use.
+Keep Terminal open while using the app. It currently launches from source; a signed, double-click `.app` installer is still planned. GitHub Actions artifacts contain a development executable, not an installer.
 
-## Use it privately
+### Add your sounds
 
-Each person runs the same app against their own folders. The selected roots, security bookmarks, catalog database, favorites, custom tags, and semantic embeddings are stored in that user's macOS Application Support directory. Waveforms are computed for the preview in memory. Local settings use macOS preferences. No library contents are part of the Git repository and the app has no upload service.
+1. Extract downloaded ZIP packs in Finder.
+2. Click **Add folders**, select a sample-pack root, then **Add to Library**.
+3. Wait for the scan to finish. Add other pack locations as needed.
 
-## Install for yourself or others
+Subfolders are included automatically. Adding `Sample Pack` also includes `Sample Pack/Drums/One Shots/Kicks`. Those folder names help search and classification. Add the parent once rather than each nested folder.
 
-For development, clone the repository and run `swift run SampleAtlas`. To build a release executable:
+For Splice, use **Preferences → Go to folder** in Splice to locate its downloads, then add that folder. For Apple loops, select the installed audio-loop folder, including its relocated location if applicable. Only local, readable audio is indexed; keep external drives connected. See the [usage guide](docs/USAGE.md) for details.
+
+### Find a sound and use it in Logic
+
+1. Search a term such as `kick` or `riser`; narrow with **Type**, **Kind**, BPM, or Key.
+2. Click a result to listen. Arrow keys change selection, and **Space** plays/pauses while the list is focused. Turn **Auto-preview** off for manual playback.
+3. Keep Logic beside Sample Atlas and drag the result row onto an audio track or the empty Tracks area below existing tracks.
+4. Star useful sounds or enter custom tags below the preview and click **Save tags**.
+
+If direct dragging fails in your setup, right-click → **Reveal in Finder**, then drag from Finder. Preview plays at the original tempo and pitch, independently of Logic's transport.
+
+### BPM and key labels
+
+The app reads filename labels and available metadata; it does not yet estimate missing BPM/key from the audio. A pitch without a mode is displayed as a root note:
+
+| Example filename | Interpretation |
+| --- | --- |
+| `Drum_Loop_128.wav` | 128 BPM |
+| `Synth_127.5_BPM_F#min.wav` | 127.5 BPM, F-sharp minor |
+| `Riser_03_(A).wav` | A root note; BPM unknown |
+| `Bass_C_M.wav` / `Bass_Cm.wav` | C major / C minor |
+
+A one-shot can have a root note without a meaningful tempo. Ambiguous or absent values remain `—`. BPM/key filters can therefore hide untagged sounds; reset filters if expected results are missing.
+
+## Updates and private data
+
+Quit the app, then run from your existing checkout:
 
 ```sh
-swift build -c release
+git pull --ff-only
+swift run SampleAtlas
 ```
 
-The GitHub Actions macOS workflow publishes a downloadable command-line executable artifact after a successful build. This is not yet a packaged, signed, notarized `.app` installer; use the source launch instructions above. Signing credentials are not stored in this repository.
+Your catalog, folders, favorites, and tags persist. New files trigger incremental scans while the app is open, and launch checks for changes made while it was closed. **Rescan folders** is a fallback after reconnecting a drive. Parser upgrades may refresh existing metadata once; you do not need to remove/re-add packs.
 
-The project is also suitable as a portfolio demonstration: the README, plan, architecture, tests, CI, and optional semantic layer are public, while all personal audio remains local.
+Catalogs and semantic embeddings stay in `~/Library/Application Support/Sample Atlas/`; app preferences use macOS settings storage. Original audio is never moved or overwritten. There is no audio upload service. Keep sample files, catalogs, credentials, and model downloads out of commits.
 
-## Optional sound search
+## Optional: search by sound
 
-Text search works without Python or a model. To enable descriptions such as `dark airy riser`:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run in another terminal from this repository:
 
 ```sh
 ./scripts/setup-semantic.sh
 ```
 
-Enter the printed Python executable and worker path in Sound search settings, then build the sound index. The model downloads once and runs locally. Analysis uses three ten-second windows, persists one embedding per file, and refreshes only changed files. Metadata filters are always applied before semantic ranking.
+Open **Sound search settings**, paste the Python and worker paths printed by the script, then click **Build / Update Sound Index**. Initial setup downloads dependencies and a model; audio analysis and later searches run locally. When ready, enable **Search by sound**.
 
-The semantic worker is intentionally optional: it adds a large model download and CPU indexing cost. Evaluate it on your own queries before relying on it for production decisions. See `semantic/worker.py` and `semantic/pyproject.toml` for the pinned implementation.
+After relaunching, use **Load Existing Index**. After adding sounds, update the sound index manually. This feature is experimental: real-library relevance and speed still need evaluation. It does not supply missing BPM/key values.
 
-## Search design
+## Development and roadmap
 
-Exact metadata filters are SQL predicates with indexes. Text queries are expanded through a small visible synonym map and ranked with FTS5 BM25. A query snapshots all ranked IDs and loads row details in pages of 200 as you scroll; 200 is a page size, not a result cap. Semantic retrieval scores the resident vector matrix and returns the eligible IDs in cosine-similarity order. When both modes are active, reciprocal-rank fusion combines the independent rankings without treating their scores as comparable. Query embeddings are LRU-cached and model inference is serialized through one resident worker. Semantic results rank indexed sounds by similarity; they are not guaranteed exact matches to a description.
-
-Unknown BPM/key values remain unknown. Estimated values will carry their origin and confidence when automatic analysis is added.
-
-## Development
+The app uses SwiftUI/AppKit, AVFoundation/Core Audio, and SQLite FTS5. The optional Python worker uses a pinned CLAP model. Metadata filtering and ranked text search are combined with audio similarity when enabled. Rows load in pages of 200, with no total result cap.
 
 ```sh
 swift test
-swift build
+swift build -c release
+# After optional semantic setup:
+cd semantic
+.venv/bin/python -m unittest test_retrieval.py
 ```
 
-Tests cover hierarchy and tempo/key parsing, FTS filters, pagination past 200 results, schema migration, annotation persistence, unchanged audio bytes, disconnected sources, and deterministic hybrid ranking. The semantic retrieval tests run without downloading a model: `cd semantic && .venv/bin/python -m unittest test_retrieval.py`. Real model quality, folder events, and dragging into Logic still need validation on a representative production library.
+Tests cover filename parsing, catalog migration, search pagination, annotation persistence, unchanged audio files, and retrieval ranking. Manual validation in Logic and semantic evaluation are ongoing. Next priorities include a proper installer, missing-metadata analysis, similar-sound search, and library relinking. See the [roadmap](PLAN.md).
 
-## Project status
+Issues and pull requests are welcome. Include your macOS version, reproduction steps, and a non-sensitive filename example when relevant. Use synthetic or redistributable fixtures; do not attach private production audio or library databases.
 
-This is an early working build. The next validation step is to index a real library and manually verify preview and drag into Logic. Follow the staged plan in [PLAN.md](PLAN.md) for metadata analysis, external-drive behavior, and semantic-quality evaluation.
-
-## Privacy and contributions
-
-Sample Atlas is local-first. Selected folder paths, security bookmarks, favorites, custom tags, and generated embeddings stay on the user's Mac. They are not uploaded by the app. Do not commit sample files, exported catalogs, absolute local paths, credentials, model weights, or private production audio. The repository's ignore rules cover common audio and cache formats, but review `git status` before committing.
-
-Issues and pull requests are welcome. Please use synthetic or redistributable fixtures and describe your macOS/Logic Pro environment when reporting a workflow issue.
-
-## License
-
-MIT; see [LICENSE](LICENSE).
+[Detailed usage and troubleshooting](docs/USAGE.md) · [Roadmap](PLAN.md) · [MIT license](LICENSE)

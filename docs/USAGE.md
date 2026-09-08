@@ -1,5 +1,7 @@
 # Using Sample Atlas
 
+New installation? Start with the [README quick start](../README.md#get-started). This guide covers daily use and troubleshooting after cloning the repository.
+
 ## Update and launch
 
 Quit any running Sample Atlas first. From the repository folder:
@@ -40,7 +42,7 @@ Sweeps, risers, downlifters, impacts, claps and snares are distinct categories. 
 
 - Explicit BPM labels are read from filenames and, as fallback, folders. A single plausible bare number is also accepted in a loop filename or alongside a pitch label, except for explicitly labeled one-shots where numbers may be hit IDs. These remain filename hints, not audio measurements.
 - Major/minor labels such as `F#min` are stored as keys.
-- A final pitch label such as `Bass_01_C` is a **root note**. It does not imply C major.
+- A pitch label such as `Bass_01_C`, `Riser_03_(A)`, or `Bass_[Eb]_Soft` is a **root note**. It does not imply a major/minor key. Parentheses/brackets and filename extensions are supported; uppercase `M` means major and lowercase `m` means minor.
 - A one-shot usually has no meaningful tempo, but a pitched bass/synth/kick can have a root note; a chord one-shot can have a key.
 - Unpitched percussion/noise can have neither. Unknown values remain blank (`—`). No automatic audio-based BPM/key estimation is included yet.
 - A BPM range excludes samples without BPM. Reset it when looking for untagged one-shots.
@@ -52,7 +54,7 @@ Sweeps, risers, downlifters, impacts, claps and snares are distinct categories. 
 3. Drag from anywhere in its row into an audio track, or the empty Tracks area below existing tracks. The **Drag to Logic** control also remains available.
 4. If a destination rejects the drag, right-click the row, choose **Reveal in Finder**, and drag from Finder.
 
-Dragging sends the original file URL. Scanning and previewing do not convert WAV to AIFF or modify the original file. The File column shows the original extension. The optional semantic worker can create a temporary decoded WAV for otherwise unsupported formats, and deletes that temporary file afterward; it does not replace the source or produce an AIFF library copy. If AIFF appears, compare the original in Finder with Logic's project copy before concluding which app created it.
+Dragging sends the original file URL. Scanning and previewing do not convert WAV to AIFF or modify the original file. The preview strip shows the original extension. The optional semantic worker can create a temporary decoded WAV for otherwise unsupported formats, and deletes that temporary file afterward; it does not replace the source or produce an AIFF library copy. If AIFF appears, compare the original in Finder with Logic's project copy before concluding which app created it.
 
 Preview is independent of Logic's transport and plays at original tempo and pitch. It does not follow project BPM/key or route through Logic's mixer. Direct dragging and audio-device behavior need validation in your Logic setup.
 
@@ -66,7 +68,7 @@ Local data is in `~/Library/Application Support/Sample Atlas/`. It stays outside
 
 ## Optional semantic search
 
-Run in a second terminal, from the repository:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if needed. Run in a second terminal, from the repository:
 
 ```sh
 ./scripts/setup-semantic.sh
@@ -76,11 +78,16 @@ Open **Sound search settings**, paste the printed Python and worker paths, and c
 
 After restarting, choose **Load Existing Index**. After new files are scanned, choose **Build / Update Sound Index** again; expensive audio embedding updates remain manual. Audio stays local, but the first model download needs internet access. Search results are similarity-ranked, and their quality on a production library is still experimental.
 
-## Next development
+## Troubleshooting
 
-1. Validate direct row drag, auto-preview and filesystem events in Logic with a real pack; test audio interface output selection.
-2. Package a proper `.app` and add a straightforward installer.
-3. Add audio BPM/key estimation, confidence, manual corrections and reliable loop/one-shot detection for unlabeled files.
-4. Measure semantic retrieval latency and relevance on representative production queries; add similar-sound search and index coverage/status.
-5. Add folder tree browsing, duration filters, duplicate grouping and moved-library relinking.
-6. Add tempo/pitch-matched preview and optional Logic integration.
+| Symptom | Check |
+| --- | --- |
+| `swift` missing or build fails before compiling | Finish Xcode setup, confirm `swift --version` is 5.10+, and check `xcode-select -p` points to your installed developer tools. |
+| Pack is absent | Extract its ZIP, add its parent folder, connect its drive, and inspect **Show scan issues**. Cloud placeholders are skipped. |
+| Expected sound is missing | Reset Type, Kind, BPM and Key filters; try a distinctive filename or folder term. |
+| Key/BPM stays blank | Check whether the filename contains an explicit label. For a pitched effect, choose a **root note** in the Key filter instead of major/minor. Use **Rescan folders** after updating the app. |
+| Added file does not appear | Wait for the scan debounce; use **Rescan folders** after a reconnect or on a drive that does not deliver filesystem events. |
+| Preview is silent | Check preview volume and macOS audio output. Preview does not route through Logic's mixer. |
+| Semantic controls stay disabled | Complete setup, build/load the index in **Sound search settings**, and read the worker status there. |
+
+For future features and validation work, see the [roadmap](../PLAN.md).

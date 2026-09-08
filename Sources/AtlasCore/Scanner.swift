@@ -46,12 +46,14 @@ public enum LibraryScanner {
                             channels: Int(audio.processingFormat.channelCount), bpm: Metadata.bpm(name, kind: kind), key: Metadata.key(name),
                             category: Metadata.category(name: name, folder: folder), fingerprint: fingerprint)
                         sample.kind = kind; sample.rootNote = Metadata.rootNote(name)
+                        if sample.bpm == nil, let tempo = embeddedTempo(url), (30...300).contains(tempo) {
+                            sample.bpm = tempo; sample.metadataOrigin = "embedded tempo; filename pitch"
+                        }
                         // Prefer filename values; use explicit labels in the closest folder as a fallback.
                         for component in relativeFolder.split(separator: "/").reversed() {
                             if sample.bpm == nil, let bpm = Metadata.bpm(String(component)) { sample.bpm = bpm; sample.metadataOrigin = "filename / folder labels" }
-                            if sample.key == nil, let key = Metadata.key(String(component)) { sample.key = key; sample.rootNote = sample.rootNote ?? String(key.split(separator: " ")[0]); sample.metadataOrigin = "filename / folder labels" }
+                            if sample.key == nil, sample.rootNote == nil, let key = Metadata.key(String(component)) { sample.key = key; sample.rootNote = String(key.split(separator: " ")[0]); sample.metadataOrigin = "filename / folder labels" }
                         }
-                        if let tempo = embeddedTempo(url), (30...300).contains(tempo) { sample.bpm = tempo; sample.metadataOrigin = "embedded tempo; filename key" }
                         return sample
                     }
                     batch.append(sample); report.indexed += 1
