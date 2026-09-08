@@ -54,6 +54,34 @@ final class LibraryTests: XCTestCase {
         XCTAssertEqual(HybridRanking.fuse(lexical: ids, semantic: reversed).count, 637)
     }
 
+    func testFolderFilterMatchesSubtreeAndTreeAggregatesCounts() async throws {
+        let catalog = try Catalog(path: ":memory:")
+        let source = try await catalog.addSource(url: URL(fileURLWithPath: "/synthetic/Pack"))
+        let folders = ["Pack/Drums/Kicks", "Pack/Drums/Kicks", "Pack/Drums/Snares", "Pack/Drumsticks", "Pack"]
+        try await catalog.upsert(folders.enumerated().map { i, folder in
+            Sample(sourceID: source.id, path: "/synthetic/Pack/\(i).wav", name: "sound\(i)", folder: folder)
+        }, seen: "t")
+        var request = SearchRequest(); request.folder = "Pack/Drums"
+        let subtree = try await catalog.matchingIDs(request).count
+        XCTAssertEqual(subtree, 3, "Whole subtree, not the sibling sharing a prefix")
+        request.folder = "Pack/Drums/Kicks"
+        let kicks = try await catalog.matchingIDs(request).count
+        XCTAssertEqual(kicks, 2)
+        request.text = "sound2"
+        let kicksNamedSound2 = try await catalog.matchingIDs(request).count
+        XCTAssertEqual(kicksNamedSound2, 0, "Search combines with the folder")
+        request.folder = "Pack/Drums"
+        let drumsNamedSound2 = try await catalog.matchingIDs(request).count
+        XCTAssertEqual(drumsNamedSound2, 1)
+        let counts = try await catalog.folders()
+        let tree = FolderNode.tree(counts, sources: [source])
+        XCTAssertEqual(tree.map(\.name), ["Pack"]); XCTAssertEqual(tree[0].count, 5)
+        let drums = tree[0].children?.first { $0.name == "Drums" }
+        XCTAssertEqual(drums?.count, 3, "Intermediate folder without direct files is synthesized")
+        XCTAssertEqual(drums?.children?.map(\.name), ["Kicks", "Snares"])
+        XCTAssertNil(tree[0].children?.first { $0.name == "Drumsticks" }?.children)
+    }
+
     func testRealScanKeepsOriginalAudioAndAnnotationsAcrossUpdates() async throws {
         let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: temporary) }

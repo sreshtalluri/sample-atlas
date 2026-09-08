@@ -6,6 +6,7 @@ Sample Atlas is a standalone Mac companion for browsing a personal sample librar
 
 - Persistent local SQLite catalog, in-place recursive scans, filesystem change notifications, and explicit rescans.
 - Filename, pack, subfolder, tag and category search; BPM, key/root, kind and favorite filters.
+- Sidebar folder tree per library; selecting a folder limits results to its subtree and combines with search and filters.
 - Folder-aware categories, loop/one-shot classification from labels, drum-hit names and tempo tags, and conservative filename metadata parsing.
 - Ranked result snapshots with incremental row loading and no 200-result ceiling.
 - Responsive native table, whole-row file dragging, automatic auditioning, waveform, volume, looping and scrubbing.
@@ -23,7 +24,7 @@ Implemented does not mean fully validated in every Logic/audio-interface setup. 
 | 2 | Simplify installation | Ship a proper `.app` bundle with self-provisioning sound search (plan below), then signed/notarized releases when signing is available. |
 | 3 | Improve musical metadata | Estimate tempo only for loops that still lack one (about 1% after the label parser), never invent tempo/key for one-shots or FX, expose confidence, and preserve user corrections. |
 | 4 | Evaluate semantic retrieval | Run known production queries, measure relevance and latency, expose index coverage, and add similar-sound search. |
-| 5 | Improve large-library navigation | Add folder-tree browsing, duration filters, duplicate grouping, moved-library relinking, and clearer offline status. |
+| 5 | Improve large-library navigation | Add duration filters, duplicate grouping, moved-library relinking, and clearer offline status. |
 | 6 | Match the production session | Add audio-output selection, tempo/pitch-matched preview, and investigate optional Logic transport integration. |
 
 ### Plan: `.app` bundle with bundled `uv` (not started)

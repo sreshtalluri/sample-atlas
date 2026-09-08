@@ -148,10 +148,18 @@ public actor Catalog {
         let s = try statement("SELECT count(*) FROM samples"); defer { sqlite3_finalize(s) }
         guard sqlite3_step(s) == SQLITE_ROW else { throw failure() }; return Int(sqlite3_column_int64(s, 0))
     }
+    public func folders() throws -> [(sourceID: Int64, folder: String, count: Int)] {
+        let s = try statement("SELECT source_id,folder,count(*) FROM samples WHERE available=1 GROUP BY 1,2"); defer { sqlite3_finalize(s) }
+        var result: [(sourceID: Int64, folder: String, count: Int)] = []
+        while sqlite3_step(s) == SQLITE_ROW { result.append((sqlite3_column_int64(s, 0), string(s, 1), Int(sqlite3_column_int64(s, 2)))) }
+        return result
+    }
     private func filters(_ request: SearchRequest) -> (String, [Any?]) {
         var clauses = ["1=1"]; var values: [Any?] = []
         if !request.includeUnavailable { clauses.append("s.available=1") }
         if let id = request.sourceID { clauses.append("s.source_id=?"); values.append(id) }
+        // instr avoids LIKE/GLOB escaping for folder names containing _ % [ *.
+        if !request.folder.isEmpty { clauses.append("(s.folder=? OR instr(s.folder,?)=1)"); values.append(request.folder); values.append(request.folder + "/") }
         if !request.category.isEmpty { clauses.append("s.category=?"); values.append(request.category) }
         if !request.kind.isEmpty { clauses.append("s.kind=?"); values.append(request.kind) }
         if request.key == "Unknown" { clauses.append("s.musical_key IS NULL") }

@@ -43,22 +43,14 @@ struct ContentView: View {
                 }
             }.padding(.top, 14)
             VStack(spacing: 6) {
-                sidebarButton("All samples", icon: "square.stack.3d.up", active: model.sourceID == nil && !model.favoritesOnly) { model.sourceID = nil; model.favoritesOnly = false }
-                sidebarButton("Favorites", icon: "star", active: model.favoritesOnly) { model.sourceID = nil; model.favoritesOnly = true }
+                sidebarButton("All samples", icon: "square.stack.3d.up", active: model.sourceID == nil && !model.favoritesOnly) { model.sourceID = nil; model.folder = ""; model.favoritesOnly = false }
+                sidebarButton("Favorites", icon: "star", active: model.favoritesOnly) { model.sourceID = nil; model.folder = ""; model.favoritesOnly = true }
             }
-            HStack { Text("SOURCES").font(.caption.weight(.semibold)).foregroundStyle(.secondary); Spacer(); Text("\(model.sources.count)").font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
-            ScrollView {
-                VStack(spacing: 5) {
-                    ForEach(model.sources) { source in
-                        sidebarButton(source.name, icon: "folder", active: model.sourceID == source.id) { model.sourceID = source.id; model.favoritesOnly = false }
-                            .help(source.path)
-                            .contextMenu {
-                                Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: source.path)]) }
-                                Button("Remove from Catalog", role: .destructive) { model.removeSource(source) }.disabled(model.scanning)
-                            }
-                    }
-                }
+            HStack { Text("LIBRARY").font(.caption.weight(.semibold)).foregroundStyle(.secondary); Spacer(); Text("\(model.sources.count)").font(.caption.monospacedDigit()).foregroundStyle(.secondary) }
+            List(model.folderTree, children: \.children) { node in
+                folderRow(node).listRowSeparator(.hidden).listRowInsets(EdgeInsets(top: 1, leading: 0, bottom: 1, trailing: 0))
             }
+            .listStyle(.plain).scrollContentBackground(.hidden)
             Button { model.addFolders() } label: { Label("Add folders", systemImage: "plus").frame(maxWidth: .infinity) }.controlSize(.large).disabled(model.scanning)
             Divider()
             VStack(alignment: .leading, spacing: 10) {
@@ -82,6 +74,32 @@ struct ContentView: View {
                 .background(active ? accent.opacity(0.13) : .clear, in: RoundedRectangle(cornerRadius: 7))
                 .foregroundStyle(active ? accent : .secondary)
         }.buttonStyle(.plain)
+    }
+    private func folderRow(_ node: FolderNode) -> some View {
+        let active = model.sourceID == node.sourceID && model.folder == node.folder && !model.favoritesOnly
+        let source = model.sources.first { $0.id == node.sourceID }
+        let isRoot = node.folder == source?.name
+        let path = source.map { $0.path + String(node.folder.dropFirst($0.name.count)) }
+        return Button { model.sourceID = node.sourceID; model.folder = node.folder; model.favoritesOnly = false } label: {
+            HStack(spacing: 6) {
+                Image(systemName: isRoot ? "folder.fill" : "folder").frame(width: 18)
+                Text(node.name).lineLimit(1)
+                Spacer(minLength: 4)
+                Text(node.count.formatted()).font(.caption.monospacedDigit()).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 8).padding(.vertical, 6)
+            .background(active ? accent.opacity(0.13) : .clear, in: RoundedRectangle(cornerRadius: 7))
+            .foregroundStyle(active ? accent : .secondary)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(path ?? node.folder)
+        .contextMenu {
+            if let source, let path {
+                Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
+                if isRoot { Button("Remove from Catalog", role: .destructive) { model.removeSource(source) }.disabled(model.scanning) }
+            }
+        }
     }
     private var header: some View {
         VStack(alignment: .leading, spacing: 18) {

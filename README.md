@@ -7,7 +7,8 @@ Your audio stays in its original folders. Each user has a private local catalog;
 ## What it does
 
 - Searches filenames, pack names, subfolders, and your own tags.
-- Filters by instrument/effect type, loop or one-shot, BPM, key/root note, and favorites.
+- Browses each library as a folder tree in the sidebar; click any folder to limit results to it and everything beneath it.
+- Filters by instrument/effect type, loop or one-shot, BPM, key/root note, and favorites; all filters, the folder, and search combine.
 - Previews on selection, with waveform, volume, looping, and scrubbing.
 - Lets you drag directly from a result row into Logic, or reveal the original in Finder.
 - Scrolls through all matching results, loading rows as needed.
