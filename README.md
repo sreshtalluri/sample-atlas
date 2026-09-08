@@ -13,7 +13,7 @@ Sample Atlas is a local-first macOS sample browser for Logic Pro. It brings samp
 - Optional local semantic search using a pinned CLAP audio/text model.
 - Incremental scanning and embedding caches preserve responsiveness and annotations.
 
-The app never moves or copies your audio. Its catalog lives in `~/Library/Application Support/Sample Atlas/` and is excluded from this repository.
+The app never moves or copies your audio. Its catalog lives in `~/Library/Application Support/Sample Atlas/` and is excluded from this repository. This public repository contains source code, documentation, and synthetic metadata tests only; it contains no personal sample files, library paths, catalog databases, credentials, or model weights.
 
 ## Run the app
 
@@ -56,6 +56,12 @@ Tests cover tempo/key parsing, synonyms, FTS query construction, and determinist
 
 This is an early working build. The next validation step is to index a real library and manually verify preview and drag into Logic. Follow the staged plan in [PLAN.md](PLAN.md) for metadata analysis, external-drive behavior, and semantic-quality evaluation.
 
+## Privacy and contributions
+
+Sample Atlas is local-first. Selected folder paths, security bookmarks, favorites, custom tags, and generated embeddings stay on the user's Mac. They are not uploaded by the app. Do not commit sample files, exported catalogs, absolute local paths, credentials, model weights, or private production audio. The repository's ignore rules cover common audio and cache formats, but review `git status` before committing.
+
+Issues and pull requests are welcome. Please use synthetic or redistributable fixtures and describe your macOS/Logic Pro environment when reporting a workflow issue.
+
 ## License
 
-Copyright © 2026. License to be selected before public distribution.
+MIT; see [LICENSE](LICENSE).
