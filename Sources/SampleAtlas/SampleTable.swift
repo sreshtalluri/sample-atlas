@@ -31,6 +31,10 @@ struct SampleTable: NSViewRepresentable {
         table.setDraggingSourceOperationMask(.copy, forLocal: false)
         table.setDraggingSourceOperationMask(.copy, forLocal: true)
         let menu = NSMenu(); menu.delegate = context.coordinator; table.menu = menu
+        // Reserve a separate scrollbar gutter. Overlay scrollers cover the
+        // rightmost favorite button even when the columns fit the viewport.
+        scroll.scrollerStyle = .legacy
+        scroll.autohidesScrollers = false
         scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = false
         scroll.drawsBackground = false
         scroll.contentView.postsBoundsChangedNotifications = true

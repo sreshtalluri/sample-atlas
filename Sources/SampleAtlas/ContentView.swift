@@ -103,34 +103,31 @@ struct ContentView: View {
     }
     private var filters: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 Picker("Type", selection: $model.category) {
                     Text("All types").tag("")
                     ForEach(Metadata.categories, id: \.self) { Text($0).tag($0) }
-                }.frame(width: 170)
+                }.labelsHidden().frame(width: 132).help("Instrument or effect type")
+                Picker("Kind", selection: $model.kind) {
+                    Text("All sounds").tag("")
+                    Text("Loops").tag("Loop"); Text("One-shots").tag("One-shot"); Text("Unknown kind").tag("Unknown")
+                }.labelsHidden().frame(width: 116).help("Loops, one-shots, or unknown kind")
                 Picker("Key", selection: $model.musicalKey) {
                     Text("Any key").tag(""); Text("Unknown").tag("Unknown")
                     ForEach(["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"], id: \.self) { note in
                         Text(note + " major").tag(note + " major"); Text(note + " minor").tag(note + " minor")
                         Text(note + " (root note)").tag("root:" + note)
                     }
-                }.frame(width: 175)
-                Text("BPM").foregroundStyle(.secondary)
-                TextField("Min", text: $model.minBPM).frame(width: 45).disabled(model.unknownBPM).accessibilityLabel("Minimum BPM")
-                Text("–").foregroundStyle(.secondary)
-                TextField("Max", text: $model.maxBPM).frame(width: 45).disabled(model.unknownBPM).accessibilityLabel("Maximum BPM")
-                Toggle("Unknown", isOn: $model.unknownBPM).toggleStyle(.checkbox)
+                }.labelsHidden().frame(width: 140).help("Musical key or root note")
+                HStack(spacing: 6) {
+                    Text("BPM").foregroundStyle(.secondary)
+                    TextField("Min", text: $model.minBPM).frame(width: 44).disabled(model.unknownBPM).accessibilityLabel("Minimum BPM")
+                    Text("–").foregroundStyle(.secondary)
+                    TextField("Max", text: $model.maxBPM).frame(width: 44).disabled(model.unknownBPM).accessibilityLabel("Maximum BPM")
+                    Toggle("Unknown", isOn: $model.unknownBPM).toggleStyle(.checkbox).help("Only sounds without BPM metadata")
+                }.fixedSize(horizontal: true, vertical: false)
                 Spacer(minLength: 0)
                 Button("Reset") { model.resetFilters() }.buttonStyle(.plain).foregroundStyle(.secondary)
-            }.controlSize(.small)
-            HStack {
-                Picker("Kind", selection: $model.kind) {
-                    Text("All sounds").tag("")
-                    Text("Loops").tag("Loop"); Text("One-shots").tag("One-shot"); Text("Unknown").tag("Unknown")
-                }.frame(width: 210)
-                Spacer()
-                Toggle("Auto-preview", isOn: $model.autoPreview).toggleStyle(.checkbox)
-                    .help("Play when selecting a sound; use Space to pause")
             }.controlSize(.small)
             HStack {
                 Text(model.searchStatus).font(.caption).foregroundStyle(.secondary)
@@ -178,6 +175,7 @@ struct ContentView: View {
                     Button { model.togglePlayback() } label: { Image(systemName: model.isPlaying ? "pause.fill" : "play.fill").font(.title2).frame(width: 35, height: 35) }.buttonStyle(.borderedProminent).accessibilityLabel(model.isPlaying ? "Pause preview" : "Play preview")
                     waveform.frame(height: 48)
                     Toggle(isOn: $model.looping) { Image(systemName: "repeat") }.toggleStyle(.button).help("Loop preview")
+                    autoPreviewToggle
                     Image(systemName: "speaker.wave.2").foregroundStyle(.secondary)
                     Slider(value: $model.volume, in: 0...1).frame(width: 90).accessibilityLabel("Preview volume")
                 }
@@ -188,9 +186,13 @@ struct ContentView: View {
                     Text("Metadata: \(sample.metadataOrigin)").font(.caption2).foregroundStyle(.tertiary)
                 }
             } else {
-                HStack { Image(systemName: "headphones").font(.title2); Text("Select a sound to preview"); Spacer(); Text("↑ ↓ Navigate    Space Play / Pause").font(.caption) }.foregroundStyle(.secondary).frame(height: 130)
+                HStack { Image(systemName: "headphones").font(.title2); Text("Select a sound to preview"); Spacer(); autoPreviewToggle; Text("↑ ↓ Navigate    Space Play / Pause").font(.caption) }.foregroundStyle(.secondary).frame(height: 130)
             }
         }.padding(20).background(Color.black.opacity(0.12))
+    }
+    private var autoPreviewToggle: some View {
+        Toggle("Auto-preview", isOn: $model.autoPreview).toggleStyle(.checkbox).controlSize(.small)
+            .fixedSize().help("Play when selecting a sound; use Space to pause")
     }
     private var waveform: some View {
         GeometryReader { geometry in
