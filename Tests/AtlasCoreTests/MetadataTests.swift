@@ -48,4 +48,23 @@ final class MetadataTests: XCTestCase {
         XCTAssertNil(Metadata.bpm("Perc 100BPM 128BPM.wav"))
         XCTAssertNil(Metadata.bpm("Kick_128_(C).wav", kind: "One-shot"))
     }
+    func testTempoKeyParenthesisConvention() {
+        XCTAssertEqual(Metadata.bpm("KSHMR Sax Loop 65 (120, Gm)"), 120, "Explicit (tempo, key) beats the bare take number")
+        XCTAssertEqual(Metadata.key("KSHMR Sax Loop 65 (120, Gm)"), "G minor")
+        XCTAssertEqual(Metadata.bpm("KSHMR Funk Guitar 14 (118, D).wav"), 118)
+        XCTAssertEqual(Metadata.rootNote("KSHMR Funk Guitar 14 (118, D).wav"), "D")
+        XCTAssertNil(Metadata.key("KSHMR Funk Guitar 14 (118, D).wav"))
+        XCTAssertEqual(Metadata.bpm("KSHMR Dance SS - Loved By You (118, B) - Pad"), 118)
+    }
+    func testKindFallsBackToHitsAndTempoLabels() {
+        XCTAssertEqual(Metadata.kind(name: "KSHMR Punchy Kick 13 (F)", folder: "Pack/Drums/Kicks/EDM Kicks"), "One-shot")
+        XCTAssertEqual(Metadata.kind(name: "Kick_128_(C)", folder: "Pack"), "One-shot", "A tempo-tagged drum hit is still a hit")
+        XCTAssertEqual(Metadata.kind(name: "27", folder: "Pack/Indian Percussion - DHOL/100 BPM/WAV"), "Loop", "Folder tempo label wins over folder percussion word")
+        XCTAssertEqual(Metadata.kind(name: "KSHMR Short Fill 30 - 103BPM", folder: "Pack/Drums/Fills"), "Loop")
+        XCTAssertEqual(Metadata.kind(name: "KSHMR Dance SS - Loved By You (118, B) - Pad", folder: "Pack/Songstarters"), "Loop")
+        XCTAssertEqual(Metadata.kind(name: "Pad_F#min_128", folder: "Pack/Pads"), "Loop")
+        XCTAssertEqual(Metadata.kind(name: "Clap Loop 03", folder: "Pack/Claps"), "Loop")
+        XCTAssertEqual(Metadata.kind(name: "KSHMR Ghost Ambiance - Alarming (D to B)", folder: "Pack/FX/Ambiance & Foley"), "One-shot", "Untimed sounds are one-shots, matching Splice's labels")
+        XCTAssertEqual(Metadata.kind(name: "KSHMR War Horn 05 (D)", folder: "Pack/Cinematic"), "One-shot")
+    }
 }

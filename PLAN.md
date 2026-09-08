@@ -6,7 +6,7 @@ Sample Atlas is a standalone Mac companion for browsing a personal sample librar
 
 - Persistent local SQLite catalog, in-place recursive scans, filesystem change notifications, and explicit rescans.
 - Filename, pack, subfolder, tag and category search; BPM, key/root, kind and favorite filters.
-- Folder-aware categories, explicit loop/one-shot labels, and conservative filename metadata parsing.
+- Folder-aware categories, loop/one-shot classification from labels, drum-hit names and tempo tags, and conservative filename metadata parsing.
 - Ranked result snapshots with incremental row loading and no 200-result ceiling.
 - Responsive native table, whole-row file dragging, automatic auditioning, waveform, volume, looping and scrubbing.
 - Favorites and tags preserved across rescans and metadata-parser upgrades.
