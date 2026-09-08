@@ -9,6 +9,8 @@ final class AppModel: ObservableObject {
     @Published var results: [Sample] = []
     @Published var query = "" { didSet { scheduleSearch() } }
     @Published var sourceID: Int64? { didSet { scheduleSearch() } }
+    @Published var folder = "" { didSet { scheduleSearch() } }
+    @Published var folderTree: [FolderNode] = []
     @Published var category = "" { didSet { scheduleSearch() } }
     @Published var kind = "" { didSet { scheduleSearch() } }
     @Published var musicalKey = "" { didSet { scheduleSearch() } }
@@ -89,6 +91,7 @@ final class AppModel: ObservableObject {
     func reload() async {
         do {
             sources = try await catalog.sources(); count = try await catalog.count()
+            folderTree = FolderNode.tree(try await catalog.folders(), sources: sources)
             let paths = sources.map(\.path)
             if paths != watchedPaths {
                 watchedPaths = paths
@@ -123,7 +126,7 @@ final class AppModel: ObservableObject {
     }
     func removeSource(_ source: LibrarySource) {
         Task {
-            do { try await catalog.removeSource(source.id); if sourceID == source.id { sourceID = nil }; await reload(); scheduleSearch() }
+            do { try await catalog.removeSource(source.id); if sourceID == source.id { sourceID = nil; folder = "" }; await reload(); scheduleSearch() }
             catch { self.error = error.localizedDescription }
         }
     }
@@ -157,7 +160,7 @@ final class AppModel: ObservableObject {
     }
     func cancelScan() { pendingScan = false; scanTask?.cancel() }
     var request: SearchRequest {
-        var r = SearchRequest(text: query); r.sourceID = sourceID; r.category = category; r.kind = kind; r.key = musicalKey
+        var r = SearchRequest(text: query); r.sourceID = sourceID; r.folder = folder; r.category = category; r.kind = kind; r.key = musicalKey
         r.minBPM = Double(minBPM); r.maxBPM = Double(maxBPM); r.unknownBPM = unknownBPM; r.favoritesOnly = favoritesOnly
         return r
     }

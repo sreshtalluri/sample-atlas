@@ -42,6 +42,8 @@ public struct Sample: Identifiable, Sendable, Hashable {
 public struct SearchRequest: Sendable, Equatable {
     public var text = ""
     public var sourceID: Int64?
+    /// Stored folder path ("Source/sub/folder"); matches that folder and everything beneath it.
+    public var folder = ""
     public var category = ""
     public var kind = ""
     public var key = ""
@@ -53,6 +55,36 @@ public struct SearchRequest: Sendable, Equatable {
     public var limit = 200
     public var offset = 0
     public init(text: String = "") { self.text = text }
+}
+
+public struct FolderNode: Identifiable, Hashable, Sendable {
+    public var sourceID: Int64
+    public var folder: String
+    public var name: String
+    public var count: Int
+    public var children: [FolderNode]?
+    public var id: String { "\(sourceID)|\(folder)" }
+
+    /// Folders are stored as "Source name/relative/path". Folders that only hold
+    /// subfolders still get a node, and every count includes everything beneath it.
+    public static func tree(_ counts: [(sourceID: Int64, folder: String, count: Int)], sources: [LibrarySource]) -> [FolderNode] {
+        final class Branch { var count = 0; var children: [String: Branch] = [:] }
+        var roots: [Int64: Branch] = [:]
+        for entry in counts {
+            let root = roots[entry.sourceID] ?? Branch(); roots[entry.sourceID] = root
+            var branch = root; branch.count += entry.count
+            for part in entry.folder.split(separator: "/").dropFirst().map(String.init) {
+                let child = branch.children[part] ?? Branch(); branch.children[part] = child
+                branch = child; branch.count += entry.count
+            }
+        }
+        func node(_ branch: Branch, sourceID: Int64, folder: String, name: String) -> FolderNode {
+            let children = branch.children.keys.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+                .map { node(branch.children[$0]!, sourceID: sourceID, folder: folder + "/" + $0, name: $0) }
+            return FolderNode(sourceID: sourceID, folder: folder, name: name, count: branch.count, children: children.isEmpty ? nil : children)
+        }
+        return sources.map { node(roots[$0.id] ?? Branch(), sourceID: $0.id, folder: $0.name, name: $0.name) }
+    }
 }
 
 public struct ScanProgress: Sendable {
