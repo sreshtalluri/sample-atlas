@@ -33,3 +33,5 @@ semantic-evaluation.json
 samples/
 sample-library/
 fixtures/audio/
+# Agent worktrees and session files.
+.claude/

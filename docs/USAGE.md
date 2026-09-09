@@ -1,19 +1,15 @@
 # Using Sample Atlas
 
-New installation? Start with the [README quick start](../README.md#get-started). This guide covers daily use and troubleshooting after cloning the repository.
+New installation? Start with the [README quick start](../README.md#get-started). This guide covers daily use and troubleshooting, whether you use the downloaded app or run from source.
 
 ## Update and launch
 
-Quit any running Sample Atlas first. From the repository folder:
+Quit any running Sample Atlas first.
 
-```sh
-git pull --ff-only
-swift run SampleAtlas
-```
+- **Downloaded app:** download the newest `Sample-Atlas-macos.zip` from Releases, unzip, and replace the copy in Applications. The build is ad-hoc signed, so the first launch of each new version needs right-click → **Open**.
+- **From source:** in the repository folder run `git pull --ff-only`, then `swift run SampleAtlas` (keep that terminal open) or `scripts/make-app.sh` to rebuild `dist/Sample Atlas.app`.
 
-Keep that terminal open while the app runs. The current distribution is a development executable, not a signed `.app` installer.
-
-Your local catalog is reused automatically. This metadata-parser upgrade performs one refresh of previously indexed files on the first launch; it preserves favorites and custom tags. Later launches check for changes and skip metadata decoding for unchanged files. There is no need to re-add packs or delete the database.
+Your local catalog is reused automatically by either build. When the metadata parser changes, the next launch refreshes previously indexed files once and preserves favorites and custom tags. Other launches only check for changed files, which takes a few seconds even for libraries on external drives. There is no need to re-add packs or delete the database.
 
 ## Add sample packs
 
@@ -29,7 +25,8 @@ For Splice, choose **Preferences → Go to folder** in Splice and add that folde
 ## Find and audition sounds
 
 - Search `kshmr kick` or `sweeps`; combine that with the Type and Kind filters.
-- Kind has **Loops**, **One-shots**, and **Unknown**. It reads explicit file/folder labels, not duration guesses.
+- Kind is **Loops** or **One-shots**. Explicit `loop`/`one shot` labels in the name or folders win; otherwise named drum hits are one-shots, anything carrying a tempo is a loop, and untimed sounds such as FX, foley and vocal phrases are one-shots. Duration is never used to guess.
+- Click a folder in the sidebar tree to limit results to it and everything beneath it; search and filters still apply within that folder.
 - Click a row to hear it. Changing the selection stops the previous preview. Clicking the same row restarts it. Arrow-key selection also auto-previews.
 - Turn off **Auto-preview** if you want manual playback; Space toggles play/pause while the table is focused.
 - Use looping, volume and scrubbing in the preview strip.
@@ -78,12 +75,13 @@ When running from source, install [uv](https://docs.astral.sh/uv/getting-started
 
 Then open **Sound search settings**, paste the printed Python and worker paths, and choose **Build / Update Sound Index**. The first run downloads the model and can take time. When ready, enable **Search by sound** and try a description such as `airy noise riser`.
 
-After restarting, the saved index loads automatically when the worker paths are set; **Load Existing Index** retries manually. After a scan adds or changes files, those files are embedded automatically if sound search is already loaded; otherwise choose **Build / Update Sound Index**. The first full build is the only long step. Audio stays local, but the first model download needs internet access. Search results are similarity-ranked, and their quality on a production library is still experimental.
+After restarting, the saved index loads automatically when the worker paths are set; **Load Existing Index** retries manually. After a scan adds or changes files, those files are embedded automatically if sound search is already loaded; otherwise choose **Build / Update Sound Index**. The first full build is the only long step. Audio stays local, but the first model download needs internet access. Search results are similarity-ranked and fused with the text ranking; relevance has been checked on one library of about 10,000 sounds.
 
 ## Troubleshooting
 
 | Symptom | Check |
 | --- | --- |
+| "Sample Atlas can't be opened" on first launch | The app is not notarized. Right-click it and choose **Open** once; later launches work normally. |
 | `swift` missing or build fails before compiling | Finish Xcode setup, confirm `swift --version` is 5.10+, and check `xcode-select -p` points to your installed developer tools. |
 | Pack is absent | Extract its ZIP, add its parent folder, connect its drive, and inspect **Show scan issues**. Cloud placeholders are skipped. |
 | Expected sound is missing | Reset Type, Kind, BPM and Key filters; try a distinctive filename or folder term. |
