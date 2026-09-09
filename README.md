@@ -17,9 +17,17 @@ Your audio stays in its original folders. Each user has a private local catalog;
 
 ## Get started
 
-You need **macOS 14 or later** and **Xcode 15.3 or later with Swift 5.10+**. Open Xcode once to finish its setup. Ordinary library search does not require Python or an account. Logic Pro is only needed for the Logic workflow.
+You need **macOS 14 or later**. Ordinary library search does not require Python or an account. Logic Pro is only needed for the Logic workflow.
 
-In Terminal, from a directory where you keep projects:
+### Download the app
+
+1. Download `Sample-Atlas-macos.zip` from the [Releases page](https://github.com/sreshtalluri/sample-atlas/releases), or from the latest **Build macOS app** run under Actions.
+2. Unzip it and drag **Sample Atlas.app** into Applications.
+3. The first time, right-click the app and choose **Open**. The build is not yet notarized, so a plain double-click is blocked once; afterwards it opens normally.
+
+### Or run from source
+
+You need **Xcode 15.3 or later with Swift 5.10+**; open Xcode once to finish its setup. In Terminal, from a directory where you keep projects:
 
 ```sh
 git clone https://github.com/sreshtalluri/sample-atlas.git
@@ -27,7 +35,7 @@ cd sample-atlas
 swift run SampleAtlas
 ```
 
-Keep Terminal open while using the app. It currently launches from source; a signed, double-click `.app` installer is still planned. GitHub Actions artifacts contain a development executable, not an installer.
+Keep Terminal open while using the app. `scripts/make-app.sh` builds the same `Sample Atlas.app` locally into `dist/`.
 
 ### Add your sounds
 
@@ -77,13 +85,15 @@ Catalogs and semantic embeddings stay in `~/Library/Application Support/Sample A
 
 ## Optional: search by sound
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run in another terminal from this repository:
+In the downloaded app: open **Sound search settings** and click **Set up sound search**. It installs a private Python runtime and the model dependencies (roughly 1 GB, one time) into `~/Library/Application Support/Sample Atlas/` using the bundled `uv`, then builds the sound index. Nothing is installed system-wide.
+
+When running from source instead, install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run in another terminal from this repository:
 
 ```sh
 ./scripts/setup-semantic.sh
 ```
 
-Open **Sound search settings**, paste the Python and worker paths printed by the script, then click **Build / Update Sound Index**. Initial setup downloads dependencies and a model; audio analysis and later searches run locally. When ready, enable **Search by sound**.
+Then open **Sound search settings**, paste the Python and worker paths printed by the script, and click **Build / Update Sound Index**. Either way, the first run downloads the model; audio analysis and later searches run locally. When ready, enable **Search by sound**.
 
 On later launches the saved index loads automatically and the **Search by sound** switch remembers its state; **Load Existing Index** remains for manual retries. Once sound search is loaded, any scan that adds or changes files embeds just those files afterwards; **Build / Update Sound Index** remains for a manual run. This feature is experimental: real-library relevance and speed still need evaluation. It does not supply missing BPM/key values.
 

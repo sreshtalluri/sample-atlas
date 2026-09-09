@@ -3,22 +3,25 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    tags: ['v*']
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-      - name: Build release executable
-        run: swift build -c release
-      - name: Package build artifact
-        run: |
-          mkdir -p dist/SampleAtlas
-          atlas_bin="$(swift build -c release --show-bin-path)"
-          cp "$atlas_bin/SampleAtlas" dist/SampleAtlas/
-          cp README.md LICENSE dist/SampleAtlas/
-          ditto -c -k --keepParent dist/SampleAtlas dist/SampleAtlas-macos.zip
-      - name: Upload build
+        with:
+          fetch-depth: 0
+      - name: Build Sample Atlas.app
+        run: scripts/make-app.sh
+      - name: Upload app
         uses: actions/upload-artifact@v4
         with:
-          name: SampleAtlas-macos
-          path: dist/SampleAtlas-macos.zip
+          name: Sample-Atlas-macos
+          path: dist/Sample-Atlas-macos.zip
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/Sample-Atlas-macos.zip --title "Sample Atlas $GITHUB_REF_NAME" --generate-notes

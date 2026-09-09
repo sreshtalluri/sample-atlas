@@ -231,9 +231,21 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Search by what you hear").font(.title2.weight(.semibold))
             Text("The optional CLAP model compares your description with the audio itself. It runs locally after a one-time model download. Text search works independently.").foregroundStyle(.secondary)
-            Text("Run scripts/setup-semantic.sh from the repository, then use the paths it prints.").font(.callout)
-            TextField("Python executable", text: $model.pythonPath).textFieldStyle(.roundedBorder)
-            TextField("semantic/worker.py path", text: $model.workerPath).textFieldStyle(.roundedBorder)
+            if model.bundledSemantic != nil {
+                Text("One click installs a private Python runtime and the model dependencies into Application Support (roughly 1 GB, one time), then builds the sound index.").font(.callout)
+                HStack {
+                    Button("Set up sound search") { model.setUpSemantic() }.disabled(model.semanticBusy || model.scanning)
+                    if model.settingUp { Button("Cancel setup") { model.cancelSemanticSetup() } }
+                }
+                DisclosureGroup("Advanced: custom Python and worker paths") {
+                    TextField("Python executable", text: $model.pythonPath).textFieldStyle(.roundedBorder)
+                    TextField("semantic/worker.py path", text: $model.workerPath).textFieldStyle(.roundedBorder)
+                }.font(.callout)
+            } else {
+                Text("Run scripts/setup-semantic.sh from the repository, then use the paths it prints.").font(.callout)
+                TextField("Python executable", text: $model.pythonPath).textFieldStyle(.roundedBorder)
+                TextField("semantic/worker.py path", text: $model.workerPath).textFieldStyle(.roundedBorder)
+            }
             HStack {
                 Button("Build / Update Sound Index") { model.startSemantic(index: true) }.disabled(model.semanticBusy || model.scanning || model.pythonPath.isEmpty || model.workerPath.isEmpty)
                 Button("Load Existing Index") { model.startSemantic(index: false) }.disabled(model.semanticBusy || model.pythonPath.isEmpty || model.workerPath.isEmpty)
