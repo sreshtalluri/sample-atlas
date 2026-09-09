@@ -76,7 +76,7 @@ Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if needed.
 
 Open **Sound search settings**, paste the printed Python and worker paths, and choose **Build / Update Sound Index**. The first run downloads the model and can take time. When ready, enable **Search by sound** and try a description such as `airy noise riser`.
 
-After restarting, the saved index loads automatically when the worker paths are set; **Load Existing Index** retries manually. After new files are scanned, choose **Build / Update Sound Index** again; expensive audio embedding updates remain manual. Audio stays local, but the first model download needs internet access. Search results are similarity-ranked, and their quality on a production library is still experimental.
+After restarting, the saved index loads automatically when the worker paths are set; **Load Existing Index** retries manually. After a scan adds or changes files, those files are embedded automatically if sound search is already loaded; otherwise choose **Build / Update Sound Index**. The first full build is the only long step. Audio stays local, but the first model download needs internet access. Search results are similarity-ranked, and their quality on a production library is still experimental.
 
 ## Troubleshooting
 

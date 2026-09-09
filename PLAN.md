@@ -51,7 +51,7 @@ Out of scope for this plan: converting CLAP to Core ML (removes Python entirely;
 - Preserve annotations through failed scans and disconnected drives.
 - Do not assign musical metadata solely to fill an empty column. Filename hints and audio estimates have different reliability.
 - Measure search performance on representative sizes before setting speed claims. Under 100 ms for warm text search at 100,000 records remains a target, not a measured guarantee.
-- Retain bounded decoding and cache versioning. Expensive semantic indexing remains explicit so it does not interrupt a production session.
+- Retain bounded decoding and cache versioning. The first full semantic index build is explicit; after that, scans embed only new or changed files, and only when sound search is already loaded, so an unused feature never costs CPU during a session.
 
 ## Current boundaries
 
