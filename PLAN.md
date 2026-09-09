@@ -14,16 +14,18 @@ Sample Atlas is a standalone Mac companion for browsing a personal sample librar
 - Optional persistent Python worker with pinned CLAP embeddings, incremental embedding cache, exact eligible-ID filtering and reciprocal-rank fusion.
 - Swift regression tests, semantic retrieval unit tests, and GitHub build/test workflows.
 
-Implemented does not mean fully validated in every Logic/audio-interface setup. Semantic model loading, ranking quality and large-library performance still need production-library evaluation.
+- Double-clickable `Sample Atlas.app` (universal binary, generated icon) with one-click sound-search setup through a bundled `uv`; CI attaches the zip to every main build and publishes a Release on `v*` tags.
+
+Validated in September 2026 on one library of about 10,000 sounds spanning an external exFAT drive and Splice downloads: fast launch scans, auditioning, dragging loops and one-shots into Logic, and sound-search relevance. Not yet validated: other audio-interface setups, Intel Macs, and libraries above roughly 50,000 files.
 
 ## Next milestones
 
 | Priority | Work | Acceptance check |
 | --- | --- | --- |
-| 1 | Validate the daily workflow | Browse a representative pack, audition rapidly, drag into Logic, relaunch, and add a file while the app watches the folder. |
-| 2 | Simplify installation | Ship a proper `.app` bundle with self-provisioning sound search (plan below), then signed/notarized releases when signing is available. |
+| 1 | Similar-sound search | Right-click a result → rank the library by that sample's own embedding; reuse the existing filtered top-k path. |
+| 2 | Notarized releases | With a Developer ID: hardened-runtime signing, `notarytool`, stapling; remove the right-click → Open note (step B6 below). |
 | 3 | Improve musical metadata | Estimate tempo only for loops that still lack one (about 1% after the label parser), never invent tempo/key for one-shots or FX, expose confidence, and preserve user corrections. |
-| 4 | Evaluate semantic retrieval | Run known production queries, measure relevance and latency, expose index coverage, and add similar-sound search. |
+| 4 | Semantic index visibility | Show index coverage (embedded vs. catalogued) and last update time in Sound search settings. |
 | 5 | Improve large-library navigation | Add duration filters, duplicate grouping, moved-library relinking, and clearer offline status. |
 | 6 | Match the production session | Add audio-output selection, tempo/pitch-matched preview, and investigate optional Logic transport integration. |
 

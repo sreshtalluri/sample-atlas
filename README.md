@@ -72,11 +72,11 @@ Every sound is a loop or a one-shot. Explicit `loop`/`one shot` labels in the na
 
 ## Updates and private data
 
-Quit the app, then run from your existing checkout:
+To update the downloaded app, quit it, download the newest `Sample-Atlas-macos.zip`, and replace the copy in Applications. From a source checkout:
 
 ```sh
 git pull --ff-only
-swift run SampleAtlas
+swift run SampleAtlas          # or scripts/make-app.sh to rebuild dist/Sample Atlas.app
 ```
 
 Your catalog, folders, favorites, and tags persist. New files trigger incremental scans while the app is open, and launch checks for changes made while it was closed. **Rescan folders** is a fallback after reconnecting a drive. Parser upgrades may refresh existing metadata once; you do not need to remove/re-add packs.
@@ -95,7 +95,7 @@ When running from source instead, install [uv](https://docs.astral.sh/uv/getting
 
 Then open **Sound search settings**, paste the Python and worker paths printed by the script, and click **Build / Update Sound Index**. Either way, the first run downloads the model; audio analysis and later searches run locally. When ready, enable **Search by sound**.
 
-On later launches the saved index loads automatically and the **Search by sound** switch remembers its state; **Load Existing Index** remains for manual retries. Once sound search is loaded, any scan that adds or changes files embeds just those files afterwards; **Build / Update Sound Index** remains for a manual run. This feature is experimental: real-library relevance and speed still need evaluation. It does not supply missing BPM/key values.
+On later launches the saved index loads automatically and the **Search by sound** switch remembers its state; **Load Existing Index** remains for manual retries. Once sound search is loaded, any scan that adds or changes files embeds just those files afterwards; **Build / Update Sound Index** remains for a manual run. Relevance has been checked on one library of about 10,000 sounds; treat it as a complement to text search rather than a replacement. It does not supply missing BPM/key values.
 
 ## Development and roadmap
 
@@ -109,7 +109,7 @@ cd semantic
 .venv/bin/python -m unittest test_retrieval.py
 ```
 
-Tests cover filename parsing, catalog migration, search pagination, annotation persistence, unchanged audio files, and retrieval ranking. Manual validation in Logic and semantic evaluation are ongoing. Next priorities include a proper installer, missing-metadata analysis, similar-sound search, and library relinking. See the [roadmap](PLAN.md).
+Tests cover filename parsing, loop/one-shot classification, folder-tree filtering, the directory walk, catalog migration, search pagination, annotation persistence, the worker protocol, and retrieval ranking. Next priorities include similar-sound search, duplicate grouping, tempo estimation for the few loops without a label, library relinking, and notarized releases. See the [roadmap](PLAN.md).
 
 Issues and pull requests are welcome. Include your macOS version, reproduction steps, and a non-sensitive filename example when relevant. Use synthetic or redistributable fixtures; do not attach private production audio or library databases.
 

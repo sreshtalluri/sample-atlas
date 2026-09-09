@@ -128,7 +128,7 @@ struct ContentView: View {
                 }.labelsHidden().frame(width: 132).help("Instrument or effect type")
                 Picker("Kind", selection: $model.kind) {
                     Text("All sounds").tag("")
-                    Text("Loops").tag("Loop"); Text("One-shots").tag("One-shot"); Text("Unknown kind").tag("Unknown")
+                    Text("Loops").tag("Loop"); Text("One-shots").tag("One-shot")
                 }.labelsHidden().frame(width: 116).help("Loops, one-shots, or unknown kind")
                 Picker("Key", selection: $model.musicalKey) {
                     Text("Any key").tag(""); Text("Unknown").tag("Unknown")
