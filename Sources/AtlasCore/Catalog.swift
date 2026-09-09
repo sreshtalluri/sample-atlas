@@ -4,6 +4,7 @@ import CSQLite
 public struct CatalogError: LocalizedError {
     public let message: String
     public var errorDescription: String? { message }
+    public init(message: String) { self.message = message }
 }
 
 // A single actor owns this connection. Scanners yield between batches; no SQLite work runs on the UI actor.

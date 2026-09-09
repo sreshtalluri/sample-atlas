@@ -45,6 +45,8 @@ final class AppModel: ObservableObject {
     @Published var showSettings = false
     @Published var pythonPath = UserDefaults.standard.string(forKey: "semanticPython") ?? ""
     @Published var workerPath = UserDefaults.standard.string(forKey: "semanticWorker") ?? ""
+    @Published var settingUp = false
+    private var setupProcess: Process?
     let catalog: Catalog
     let support: URL
     private let worker = SemanticWorker()
@@ -284,6 +286,65 @@ final class AppModel: ObservableObject {
     private func semanticIdle() {
         semanticBusy = false
         if pendingIndex { pendingIndex = false; updateSemanticIndex() }
+    }
+
+    struct BundledSemantic { let uv: URL; let worker: URL; let project: URL }
+    /// Present only when running from the .app assembled by scripts/make-app.sh.
+    var bundledSemantic: BundledSemantic? {
+        guard let folder = Bundle.main.resourceURL?.appendingPathComponent("semantic") else { return nil }
+        #if arch(arm64)
+        let uv = folder.appendingPathComponent("uv-aarch64")
+        #else
+        let uv = folder.appendingPathComponent("uv-x86_64")
+        #endif
+        guard FileManager.default.isExecutableFile(atPath: uv.path) else { return nil }
+        return BundledSemantic(uv: uv, worker: folder.appendingPathComponent("worker.py"), project: folder)
+    }
+    /// Installs a private Python 3.12 and the locked worker dependencies into Application Support
+    /// with the bundled uv, then builds the sound index. The signed bundle itself is never modified.
+    func setUpSemantic() {
+        guard let bundled = bundledSemantic, !semanticBusy else { return }
+        semanticBusy = true; settingUp = true
+        semanticStatus = "Installing Python and the model runtime (roughly 1 GB, one time)…"
+        let environment = support.appendingPathComponent("semantic-env")
+        Task {
+            defer { settingUp = false }
+            do {
+                try FileManager.default.createDirectory(at: environment, withIntermediateDirectories: true)
+                for name in ["pyproject.toml", "uv.lock"] {
+                    let target = environment.appendingPathComponent(name)
+                    try? FileManager.default.removeItem(at: target)
+                    try FileManager.default.copyItem(at: bundled.project.appendingPathComponent(name), to: target)
+                }
+                _ = removexattr(bundled.uv.path, "com.apple.quarantine", 0)
+                try await runSetup(uv: bundled.uv, project: environment)
+                pythonPath = environment.appendingPathComponent(".venv/bin/python").path
+                workerPath = bundled.worker.path
+                semanticBusy = false
+                startSemantic(index: true)
+            } catch { semanticStatus = error.localizedDescription; semanticBusy = false }
+        }
+    }
+    func cancelSemanticSetup() { setupProcess?.terminate() }
+    private func runSetup(uv: URL, project: URL) async throws {
+        let process = Process(); process.executableURL = uv
+        process.arguments = ["sync", "--frozen", "--no-progress", "--color", "never", "--python", "3.12", "--project", project.path]
+        let output = Pipe(); process.standardError = output; process.standardOutput = FileHandle.nullDevice
+        output.fileHandleForReading.readabilityHandler = { handle in
+            let text = String(decoding: handle.availableData, as: UTF8.self)
+            guard let line = text.split(whereSeparator: \.isNewline).last?.trimmingCharacters(in: .whitespaces), !line.isEmpty else { return }
+            Task { @MainActor in self.semanticStatus = line }
+        }
+        setupProcess = process
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            process.terminationHandler = { _ in continuation.resume() }
+            do { try process.run() } catch { process.terminationHandler = nil; continuation.resume(throwing: error) }
+        }
+        output.fileHandleForReading.readabilityHandler = nil; setupProcess = nil
+        guard process.terminationStatus == 0 else {
+            throw CatalogError(message: process.terminationReason == .uncaughtSignal ? "Sound search setup cancelled."
+                : "Sound search setup failed (uv exit \(process.terminationStatus)). Check the internet connection and free disk space, then try again.")
+        }
     }
 }
 

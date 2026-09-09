@@ -27,7 +27,7 @@ Implemented does not mean fully validated in every Logic/audio-interface setup. 
 | 5 | Improve large-library navigation | Add duration filters, duplicate grouping, moved-library relinking, and clearer offline status. |
 | 6 | Match the production session | Add audio-output selection, tempo/pitch-matched preview, and investigate optional Logic transport integration. |
 
-### Plan: `.app` bundle with bundled `uv` (not started)
+### Plan: `.app` bundle with bundled `uv` (B1–B5 implemented; B6 awaits a Developer ID)
 
 Goal: a double-clickable `Sample Atlas.app` where sound search needs no terminal, no Python install and no repository checkout. The bundle stays immutable (required for signing); everything mutable lives in `~/Library/Application Support/Sample Atlas/`.
 

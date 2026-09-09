@@ -68,13 +68,15 @@ Local data is in `~/Library/Application Support/Sample Atlas/`. It stays outside
 
 ## Optional semantic search
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if needed. Run in a second terminal, from the repository:
+In the downloaded app, open **Sound search settings** and click **Set up sound search**; the bundled `uv` installs a private Python runtime and the locked dependencies into `~/Library/Application Support/Sample Atlas/semantic-env/` (roughly 1 GB, one time, cancellable) and then builds the index. **Advanced** reveals the Python and worker path fields if you prefer your own environment.
+
+When running from source, install [uv](https://docs.astral.sh/uv/getting-started/installation/) if needed and run in a second terminal, from the repository:
 
 ```sh
 ./scripts/setup-semantic.sh
 ```
 
-Open **Sound search settings**, paste the printed Python and worker paths, and choose **Build / Update Sound Index**. The first run downloads the model and can take time. When ready, enable **Search by sound** and try a description such as `airy noise riser`.
+Then open **Sound search settings**, paste the printed Python and worker paths, and choose **Build / Update Sound Index**. The first run downloads the model and can take time. When ready, enable **Search by sound** and try a description such as `airy noise riser`.
 
 After restarting, the saved index loads automatically when the worker paths are set; **Load Existing Index** retries manually. After a scan adds or changes files, those files are embedded automatically if sound search is already loaded; otherwise choose **Build / Update Sound Index**. The first full build is the only long step. Audio stays local, but the first model download needs internet access. Search results are similarity-ranked, and their quality on a production library is still experimental.
 
