@@ -23,6 +23,11 @@ mkdir -p "$app/Contents/MacOS" "$resources"
 cp "$binary" "$app/Contents/MacOS/SampleAtlas"
 cp "$root/semantic/worker.py" "$root/semantic/pyproject.toml" "$root/semantic/uv.lock" "$root/semantic/model-revision.txt" "$resources/"
 
+echo "Rendering app icon..."
+rm -rf "$dist/AppIcon.iconset"
+swift "$root/scripts/make-icon.swift" "$dist/AppIcon.iconset"
+iconutil -c icns -o "$app/Contents/Resources/AppIcon.icns" "$dist/AppIcon.iconset"
+
 for arch in aarch64 x86_64; do
   tarball="$dist/uv-$arch-apple-darwin-$uv_version.tar.gz"
   if [ ! -f "$tarball" ]; then
@@ -44,6 +49,8 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleDevelopmentRegion</key><string>en</string>
   <key>CFBundleDisplayName</key><string>Sample Atlas</string>
   <key>CFBundleExecutable</key><string>SampleAtlas</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundleIconName</key><string>AppIcon</string>
   <key>CFBundleIdentifier</key><string>com.sreshtalluri.SampleAtlas</string>
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
   <key>CFBundleName</key><string>Sample Atlas</string>
