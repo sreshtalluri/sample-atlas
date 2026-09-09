@@ -62,6 +62,8 @@ final class AppModel: ObservableObject {
     private var folderMonitor: FolderMonitor?
     private var watchedPaths: [String] = []
     private var pendingScan = false
+    private var scanChanges = 0
+    private var pendingIndex = false
     private var changeTask: Task<Void, Never>?
 
     init() throws {
@@ -134,7 +136,7 @@ final class AppModel: ObservableObject {
         guard !scanning else { return }
         let selectedSources = targets ?? sources
         guard !selectedSources.isEmpty else { return }
-        scanning = true; scanErrors = []
+        scanning = true; scanErrors = []; scanChanges = 0
         scanTask = Task {
             for source in selectedSources {
                 if Task.isCancelled { break }
@@ -144,7 +146,7 @@ final class AppModel: ObservableObject {
                     try await LibraryScanner.scan(source: source, catalog: catalog) { report in
                         await MainActor.run {
                             self.scanStatus = "\(source.name): \(report.inspected) files · \(report.indexed) updated · \(report.skipped) unchanged/skipped"
-                            if report.finished { self.scanErrors.append(contentsOf: report.errors) }
+                            if report.finished { self.scanErrors.append(contentsOf: report.errors); self.scanChanges += report.indexed }
                         }
                     }
                 }
@@ -155,6 +157,7 @@ final class AppModel: ObservableObject {
             }
             scanning = false
             if !scanErrors.isEmpty { scanStatus = "Scan finished with \(scanErrors.count) reported issues" }
+            if scanChanges > 0 && !Task.isCancelled { updateSemanticIndex() }
             if pendingScan && !Task.isCancelled { pendingScan = false; scan() }
         }
     }
@@ -185,7 +188,7 @@ final class AppModel: ObservableObject {
                 if semanticEnabled && semanticReady && !semanticBusy && !query.trimmingCharacters(in: .whitespaces).isEmpty {
                     semanticBusy = true
                     defer {
-                        semanticBusy = false
+                        semanticIdle()
                         if generation != searchGeneration { scheduleSearch() }
                     }
                     let ids = try await catalog.eligibleIDs(r)
@@ -269,8 +272,18 @@ final class AppModel: ObservableObject {
                 _ = try await worker.request(index ? "index" : "load") { status in await MainActor.run { self.semanticStatus = status } }
                 semanticReady = true; semanticStatus = "Ready · local audio embeddings"
             } catch { semanticReady = false; semanticStatus = error.localizedDescription; await worker.stop() }
-            semanticBusy = false; scheduleSearch()
+            semanticIdle(); scheduleSearch()
         }
+    }
+    /// Embed only what a scan changed, and only once sound search is already in use.
+    /// The worker skips files whose fingerprint is cached, so this is incremental.
+    private func updateSemanticIndex() {
+        guard semanticReady || semanticBusy else { return }
+        if semanticBusy { pendingIndex = true } else { startSemantic(index: true) }
+    }
+    private func semanticIdle() {
+        semanticBusy = false
+        if pendingIndex { pendingIndex = false; updateSemanticIndex() }
     }
 }
 
