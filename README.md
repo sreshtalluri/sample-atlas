@@ -111,6 +111,6 @@ cd semantic
 
 Tests cover filename parsing, loop/one-shot classification, folder-tree filtering, the directory walk, catalog migration, search pagination, annotation persistence, the worker protocol, and retrieval ranking. Next priorities include similar-sound search, duplicate grouping, tempo estimation for the few loops without a label, library relinking, and notarized releases. See the [roadmap](PLAN.md).
 
-Issues and pull requests are welcome. Include your macOS version, reproduction steps, and a non-sensitive filename example when relevant. Use synthetic or redistributable fixtures; do not attach private production audio or library databases.
+Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) for the process and [SECURITY.md](SECURITY.md) for reporting vulnerabilities privately. Every change to `main` goes through a reviewed pull request with passing checks. Include your macOS version, reproduction steps, and a non-sensitive filename example when relevant. Use synthetic or redistributable fixtures; do not attach private production audio or library databases.
 
 [Detailed usage and troubleshooting](docs/USAGE.md) · [Roadmap](PLAN.md) · [MIT license](LICENSE)
