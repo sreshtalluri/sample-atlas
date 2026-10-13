@@ -4,6 +4,12 @@ import CSQLite
 @testable import AtlasCore
 
 final class LibraryTests: XCTestCase {
+    func testPackFolderIsFirstFolderBeneathRoot() {
+        func pack(_ folder: String) -> String { Sample(sourceID: 1, path: "/x.wav", name: "x.wav", folder: folder).packFolder }
+        XCTAssertEqual(pack("packs/1985/one_shots/long_reverse"), "packs/1985")
+        XCTAssertEqual(pack("packs/1985"), "packs/1985")
+        XCTAssertEqual(pack("packs"), "packs")
+    }
     func testFolderHierarchyAndMusicalLabels() {
         XCTAssertEqual(Metadata.category(name: "texture_03", folder: "KSHMR/Effects/Sweeps"), "Sweep")
         XCTAssertEqual(Metadata.category(name: "texture_03", folder: "KSHMR/Effects/Risers"), "Riser")

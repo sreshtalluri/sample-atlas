@@ -111,7 +111,7 @@ struct ContentView: View {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass").font(.title3).foregroundStyle(accent)
                 TextField(model.semanticEnabled ? "Describe a sound, or search names and tags…" : "Search sounds, packs, and tags…", text: $model.query)
-                    .textFieldStyle(.plain).font(.title3).focused($searchFocused)
+                    .textFieldStyle(.plain).font(.title3).focused($searchFocused).onExitCommand { model.query = "" }
                     .accessibilityLabel("Search samples")
                 if !model.query.isEmpty { Button { model.query = "" } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.plain).foregroundStyle(.secondary).accessibilityLabel("Clear search") }
                 Text("⌘ F").font(.caption).foregroundStyle(.tertiary)
@@ -189,6 +189,16 @@ struct ContentView: View {
                     Button { model.reveal(sample) } label: { Image(systemName: "folder") }.help("Reveal in Finder")
                     Label("Drag to Logic", systemImage: "hand.draw").font(.caption).padding(7).background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 6)).onDrag { NSItemProvider(object: sample.url as NSURL) }
                 }
+                HStack(spacing: 6) {
+                    if sample.category != "Other" { chip(sample.category, help: "Show only \(sample.category) sounds") { model.category = sample.category } }
+                    if sample.kind != "Unknown" { chip(sample.kind, help: "Show only \(sample.kind.lowercased())s") { model.kind = sample.kind } }
+                    if let bpm = sample.bpm { chip(String(format: "%g BPM", bpm), help: "Show only sounds at this tempo") { model.filterBPM(bpm) } }
+                    if let key = sample.key { chip(key, help: "Show only sounds in \(key)") { model.musicalKey = key } }
+                    else if let root = sample.rootNote { chip(root + " (root)", help: "Show only sounds rooted on \(root)") { model.musicalKey = "root:" + root } }
+                    let pack = String(sample.packFolder.split(separator: "/").last ?? "")
+                    chip(pack, icon: "shippingbox", help: "Show everything in this pack") { model.showFolder(of: sample, pack: true) }
+                    Spacer()
+                }
                 HStack(spacing: 16) {
                     Button { model.togglePlayback() } label: { Image(systemName: model.isPlaying ? "pause.fill" : "play.fill").font(.title2).frame(width: 35, height: 35) }.buttonStyle(.borderedProminent).accessibilityLabel(model.isPlaying ? "Pause preview" : "Play preview")
                     waveform.frame(height: 48)
@@ -204,9 +214,14 @@ struct ContentView: View {
                     Text("Metadata: \(sample.metadataOrigin)").font(.caption2).foregroundStyle(.tertiary)
                 }
             } else {
-                HStack { Image(systemName: "headphones").font(.title2); Text("Select a sound to preview"); Spacer(); autoPreviewToggle; Text("↑ ↓ Navigate    Space Play / Pause").font(.caption) }.foregroundStyle(.secondary).frame(height: 130)
+                HStack { Image(systemName: "headphones").font(.title2); Text("Select a sound to preview"); Spacer(); autoPreviewToggle; Text("↑ ↓ Navigate    Space Play / Pause    ← Restart    → Skip    F Favorite    ⌘C Copy").font(.caption) }.foregroundStyle(.secondary).frame(height: 130)
             }
         }.padding(20).background(Color.black.opacity(0.12))
+    }
+    private func chip(_ title: String, icon: String = "line.3.horizontal.decrease", help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Label(title, systemImage: icon).font(.caption).lineLimit(1) }
+            .buttonStyle(.plain).padding(.horizontal, 8).padding(.vertical, 4)
+            .background(accent.opacity(0.12), in: Capsule()).help(help)
     }
     private var autoPreviewToggle: some View {
         Toggle("Auto-preview", isOn: $model.autoPreview).toggleStyle(.checkbox).controlSize(.small)
