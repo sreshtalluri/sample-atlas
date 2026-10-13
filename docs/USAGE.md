@@ -29,6 +29,9 @@ For Splice, choose **Preferences → Go to folder** in Splice and add that folde
 - Click a folder in the sidebar tree to limit results to it and everything beneath it; search and filters still apply within that folder.
 - Click a row to hear it. Changing the selection stops the previous preview. Clicking the same row restarts it. Arrow-key selection also auto-previews.
 - Turn off **Auto-preview** if you want manual playback; Space toggles play/pause while the table is focused.
+- While the table is focused: **←** restarts the sound, **→** skips ahead a second, **F** toggles favorite, **⌘C** copies the selected files (paste into Finder or another app), and **Esc** clears the search. Esc in the search field clears it too.
+- **⇧-click** or **⌘-click** to select several sounds, then drag them into Logic together or copy them. The preview follows the most recent click.
+- Click the Type, Kind, BPM or Key chips under the preview to filter by that value. The pack chip, or right-click → **Show Pack**, shows everything in the sound's pack: the first folder beneath its library root, so a root added as a single pack shows its first subfolder. **Show Folder** shows the sound's own folder.
 - Use looping, volume and scrubbing in the preview strip.
 - Scroll to load more rows. All matches are available; the footer shows how many are loaded. **Load more** is an accessible alternative to scrolling.
 - Star a sound or add tags and choose **Save tags**.

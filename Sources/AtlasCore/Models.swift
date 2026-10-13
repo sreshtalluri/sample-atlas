@@ -30,6 +30,9 @@ public struct Sample: Identifiable, Sendable, Hashable {
     public var fingerprint: String
     public var metadataOrigin: String = "filename"
     public var url: URL { URL(fileURLWithPath: path) }
+    /// The first folder beneath the library root, which is the pack when a root holds several packs.
+    /// Files directly in the root belong to the root itself.
+    public var packFolder: String { folder.split(separator: "/", maxSplits: 2).prefix(2).joined(separator: "/") }
     public init(sourceID: Int64, path: String, name: String, folder: String = "", duration: Double = 0,
                 sampleRate: Double = 44100, channels: Int = 2, bpm: Double? = nil, key: String? = nil,
                 category: String = "Other", tags: String = "", fingerprint: String = "") {

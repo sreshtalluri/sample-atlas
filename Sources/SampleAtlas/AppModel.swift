@@ -235,6 +235,16 @@ final class AppModel: ObservableObject {
     }
     func resetFilters() { category = ""; kind = ""; musicalKey = ""; minBPM = ""; maxBPM = ""; unknownBPM = false; favoritesOnly = false }
     func reveal(_ sample: Sample) { NSWorkspace.shared.activateFileViewerSelecting([sample.url]) }
+    /// Show everything in the sound's folder or pack, as if it were clicked in the sidebar.
+    func showFolder(of sample: Sample, pack: Bool) {
+        query = ""; resetFilters(); sourceID = sample.sourceID; folder = pack ? sample.packFolder : sample.folder
+    }
+    func filterBPM(_ bpm: Double) { unknownBPM = false; minBPM = String(format: "%g", bpm); maxBPM = minBPM }
+    /// Copies the files themselves, so they paste into Finder or any app that accepts audio files.
+    func copy(_ samples: [Sample]) {
+        guard !samples.isEmpty else { return }
+        NSPasteboard.general.clearContents(); NSPasteboard.general.writeObjects(samples.map { $0.url as NSURL })
+    }
     private func loadSelection() {
         previewTask?.cancel(); player?.stop(); player = nil; isPlaying = false; playhead = 0; peaks = []
         selected = results.first { $0.id == selectedID }; tagsDraft = selected?.tags ?? ""
@@ -263,6 +273,14 @@ final class AppModel: ObservableObject {
         isPlaying = player.isPlaying
     }
     func seek(_ seconds: Double) { player?.currentTime = seconds; playhead = seconds }
+    func restart() {
+        guard let player else { return }
+        player.currentTime = 0; player.play(); isPlaying = player.isPlaying
+    }
+    func skip(_ seconds: Double) {
+        guard let player else { return }
+        seek(min(player.duration, max(0, player.currentTime + seconds)))
+    }
     func startSemantic(index: Bool) {
         guard !semanticBusy else { return }
         UserDefaults.standard.set(pythonPath, forKey: "semanticPython"); UserDefaults.standard.set(workerPath, forKey: "semanticWorker")

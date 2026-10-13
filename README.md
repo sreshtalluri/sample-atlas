@@ -50,7 +50,7 @@ For Splice, use **Preferences → Go to folder** in Splice to locate its downloa
 ### Find a sound and use it in Logic
 
 1. Search a term such as `kick` or `riser`; narrow with **Type**, **Kind**, BPM, or Key.
-2. Click a result to listen. Arrow keys change selection, and **Space** plays/pauses while the list is focused. Turn **Auto-preview** off for manual playback.
+2. Click a result to listen. Arrow keys change selection, and **Space** plays/pauses while the list is focused. **←** restarts, **F** favorites, **⌘C** copies files, and ⇧/⌘-click selects several sounds to drag together. Turn **Auto-preview** off for manual playback.
 3. Keep Logic beside Sample Atlas and drag the result row onto an audio track or the empty Tracks area below existing tracks.
 4. Star useful sounds or enter custom tags below the preview and click **Save tags**.
 

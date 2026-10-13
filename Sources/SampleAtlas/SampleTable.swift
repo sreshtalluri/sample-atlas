@@ -11,10 +11,13 @@ struct SampleTable: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = SampleScrollView()
         let table = AuditionTable()
-        table.onSpace = { [weak model] in model?.togglePlayback() }
+        let coordinator = context.coordinator
+        table.onKey = { [weak coordinator] in coordinator?.handleKey($0) ?? false }
+        table.onCopy = { [weak coordinator] in coordinator?.copySelection() }
         table.rowHeight = 46; table.intercellSpacing = NSSize(width: 0, height: 0)
         table.usesAlternatingRowBackgroundColors = true
-        table.allowsMultipleSelection = false
+        // ⇧/⌘-click several sounds to drag or copy them together; preview follows the latest click.
+        table.allowsMultipleSelection = true
         table.columnAutoresizingStyle = .noColumnAutoresizing
         // The default inset style pads the columns ~11pt per side, so the table
         // outgrows the clip view and the star column is cut off at the right edge.
@@ -125,16 +128,47 @@ struct SampleTable: NSViewRepresentable {
             let visible = table.rows(in: table.visibleRect)
             if visible.location != NSNotFound && NSMaxRange(visible) >= max(0, rows.count - 30) { model.loadMore() }
         }
+        private func samples(_ indexes: IndexSet) -> [Sample] { indexes.filter(rows.indices.contains).map { rows[$0] } }
+        func copySelection() { model.copy(samples(table?.selectedRowIndexes ?? [])) }
+        /// Audition shortcuts for the focused list; returns false to fall back to normal table keys.
+        func handleKey(_ event: NSEvent) -> Bool {
+            let modifiers = event.modifierFlags.intersection([.command, .control, .option])
+            let character = event.charactersIgnoringModifiers?.lowercased()
+            if modifiers == .command && character == "c" { copySelection(); return true }
+            guard modifiers.isEmpty else { return false }
+            switch event.keyCode {
+            case 49: model.togglePlayback()
+            case 123: model.restart()
+            case 124: model.skip(1)
+            case 53: model.query = ""
+            default:
+                // Read the row, not model.selected, so a second F sees the refreshed favorite state.
+                guard character == "f", let row = table?.selectedRow, rows.indices.contains(row) else { return false }
+                model.toggleFavorite(rows[row])
+            }
+            return true
+        }
         func menuNeedsUpdate(_ menu: NSMenu) {
             menu.removeAllItems()
-            guard let row = table?.clickedRow, rows.indices.contains(row) else { return }
-            let sample = rows[row]
-            for (title, action) in [("Reveal in Finder", #selector(revealMenu(_:))), (sample.favorite ? "Remove Favorite" : "Favorite", #selector(favoriteMenu(_:)))] {
+            guard let table, rows.indices.contains(table.clickedRow) else { return }
+            let sample = rows[table.clickedRow]
+            // Like Finder, a right-click inside the selection acts on all of it.
+            let selection = table.selectedRowIndexes.contains(table.clickedRow) ? samples(table.selectedRowIndexes) : [sample]
+            var items: [(String, Selector, Any)] = [
+                ("Reveal in Finder", #selector(revealMenu(_:)), sample),
+                (selection.count > 1 ? "Copy \(selection.count) Files" : "Copy File", #selector(copyMenu(_:)), selection),
+                ("Show Pack", #selector(packMenu(_:)), sample)]
+            if sample.folder != sample.packFolder { items.append(("Show Folder", #selector(folderMenu(_:)), sample)) }
+            items.append((sample.favorite ? "Remove Favorite" : "Favorite", #selector(favoriteMenu(_:)), sample))
+            for (title, action, object) in items {
                 let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-                item.target = self; item.representedObject = sample; menu.addItem(item)
+                item.target = self; item.representedObject = object; menu.addItem(item)
             }
         }
         @objc func revealMenu(_ sender: NSMenuItem) { if let sample = sender.representedObject as? Sample { model.reveal(sample) } }
+        @objc func copyMenu(_ sender: NSMenuItem) { if let samples = sender.representedObject as? [Sample] { model.copy(samples) } }
+        @objc func packMenu(_ sender: NSMenuItem) { if let sample = sender.representedObject as? Sample { model.showFolder(of: sample, pack: true) } }
+        @objc func folderMenu(_ sender: NSMenuItem) { if let sample = sender.representedObject as? Sample { model.showFolder(of: sample, pack: false) } }
         @objc func favoriteMenu(_ sender: NSMenuItem) { if let sample = sender.representedObject as? Sample { model.toggleFavorite(sample) } }
     }
 }
@@ -185,11 +219,11 @@ struct SampleTable: NSViewRepresentable {
 }
 
 @MainActor private final class AuditionTable: NSTableView {
-    var onSpace: (() -> Void)?
-    override func keyDown(with event: NSEvent) {
-        if event.keyCode == 49 && event.modifierFlags.intersection([.command, .control, .option]).isEmpty { onSpace?() }
-        else { super.keyDown(with: event) }
-    }
+    var onKey: ((NSEvent) -> Bool)?
+    var onCopy: (() -> Void)?
+    override func keyDown(with event: NSEvent) { if onKey?(event) != true { super.keyDown(with: event) } }
+    /// Edit ▸ Copy sends this through the responder chain before ⌘C reaches keyDown.
+    @objc func copy(_ sender: Any?) { onCopy?() }
 }
 
 @MainActor private final class SoundCell: NSTableCellView {
